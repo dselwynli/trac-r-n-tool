@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PIC R&amp;N TRAC Tool - Build Guide</title>
+<style>
+  body { font-family: Calibri, Arial, sans-serif; max-width: 960px; margin: 30px auto; padding: 0 16px; color: #222; line-height: 1.5; }
+  h1 { font-size: 24px; margin-bottom: 4px; }
+  h2 { font-size: 19px; margin-top: 40px; border-bottom: 2px solid #0057a3; padding-bottom: 6px; }
+  h3 { font-size: 15px; margin-top: 22px; }
+  .subtitle { color: #555; font-size: 14px; margin-top: 0; }
+  .step { background: #f5f5f5; border-left: 4px solid #0057a3; padding: 12px 16px; margin: 14px 0; border-radius: 0 4px 4px 0; }
+  .step-num { display: inline-block; background: #0057a3; color: #fff; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; font-weight: bold; margin-right: 8px; font-size: 13px; }
+  .note { background: #eef6ec; border-left: 4px solid #2e7d32; padding: 10px 14px; margin: 12px 0; font-size: 14px; }
+  .warn { background: #fff4e5; border-left: 4px solid #c77700; padding: 10px 14px; margin: 12px 0; font-size: 14px; }
+  .code-block { position: relative; margin-top: 8px; }
+  pre { background: #1e1e1e; color: #d4d4d4; padding: 16px; border-radius: 6px; overflow-x: auto; font-size: 12px; line-height: 1.45; max-height: 480px; }
+  button.copy-btn { position: absolute; top: 8px; right: 8px; background: #0057a3; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+  button.copy-btn:hover { background: #003f77; }
+  button.copy-btn.copied { background: #2e7d32; }
+  code { background: #eee; padding: 1px 5px; border-radius: 3px; font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid #ddd; padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #f0f0f0; }
+  .toc { background: #f9f9f9; border: 1px solid #ddd; padding: 14px 20px; border-radius: 6px; }
+  .toc a { color: #0057a3; text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  .toc ul { margin: 4px 0; }
+</style>
+</head>
+<body>
+
+<h1>PIC R&amp;N TRAC Tool</h1>
+<p class="subtitle">Complete build guide - from a blank workbook to a working tool</p>
+
+<div class="note">
+An Excel/VBA reference tool for Injury Management Advisors and case managers: pick a treatment
+type (or search a keyword), and see the relevant Personal Injury Commission decisions on
+whether that treatment is reasonable and necessary, with the applicable Clinical Framework
+principle and a verbatim extract from each decision.
+</div>
+
+<div class="toc">
+<strong>Contents</strong>
+<ul>
+<li><a href="#what-you-get">What you end up with</a></li>
+<li><a href="#requirements">Requirements</a></li>
+<li><a href="#build">Building it, step by step</a></li>
+<li><a href="#using">Using the tool</a></li>
+<li><a href="#maintaining">Maintaining it</a></li>
+<li><a href="#design-notes">Design notes worth knowing</a></li>
+<li><a href="#code1">Code block 1 - Standard Module</a></li>
+<li><a href="#code2">Code block 2 - Sheet code</a></li>
+</ul>
+</div>
+
+<h2 id="what-you-get">What you end up with</h2>
+
+<p>Four sheets, three of which stay hidden from normal use:</p>
+
+<table>
+<tr><th>Sheet</th><th>Visible?</th><th>Holds</th></tr>
+<tr><td><strong>PIC R&amp;N TRAC Tool</strong></td><td>Yes</td><td>The dropdown, search box, and results table - this is the only sheet anyone using the tool actually needs to see</td></tr>
+<tr><td>PIC Library</td><td>Very hidden</td><td>Every case: category, case name, citation, outcome, Clinical Framework principle(s), summary, keywords, verbatim extract, source URL, and favourite status. This is the actual database.</td></tr>
+<tr><td>PIC Categories</td><td>Very hidden</td><td>The unique list of categories, derived automatically from PIC Library - feeds the dropdown</td></tr>
+<tr><td>CF Principles</td><td>Very hidden</td><td>The 5 SIRA Clinical Framework guiding principles, referenced by number from PIC Library</td></tr>
+</table>
+
+<p>"Very hidden" sheets don't show up in Excel's normal Unhide dialog - two macros
+(<code>UnhidePICSheets</code> / <code>HidePICSheetsAgain</code>) reveal and re-hide them when you
+need to edit the data directly.</p>
+
+<h2 id="requirements">Requirements</h2>
+<ul>
+<li>Excel with macros enabled (a macro-enabled workbook, <code>.xlsm</code>, or macros allowed in your <code>.xlsx</code> environment)</li>
+<li>No add-ins or external libraries needed - this is plain VBA using only built-in Excel objects</li>
+</ul>
+
+<h2 id="build">Building it, step by step</h2>
+
+<div class="step"><span class="step-num">1</span><strong>Open a blank workbook</strong> (or the workbook you want this tool to live in).</div>
+
+<div class="step"><span class="step-num">2</span><strong>Open the VBA editor</strong> - Alt+F11.</div>
+
+<div class="step"><span class="step-num">3</span><strong>Insert a Standard Module</strong> - in the Project Explorer (the tree on the left; Ctrl+R if you don't see it), right-click your workbook's project &rarr; Insert &rarr; Module. This creates a generic code container (e.g. "Module1") that isn't tied to any sheet.</div>
+
+<div class="step"><span class="step-num">4</span><strong>Paste Code block 1</strong> (below) into that new Module. This holds all the shared logic and the full case library.</div>
+
+<div class="step"><span class="step-num">5</span><strong>Pick a sheet to be the tool's home screen.</strong> Any sheet works - a blank one is fine, or reuse an existing tab. In the Project Explorer, find it under "Microsoft Excel Objects" and double-click it (or right-click its tab in Excel itself &rarr; View Code) to open <em>that sheet's own</em> code window - a different place from the Module you just used.</div>
+
+<div class="step"><span class="step-num">6</span><strong>Paste Code block 2</strong> (below) into that sheet's code window. It doesn't matter what the sheet is currently named or which one you picked - the setup code builds everything on whichever sheet this code is sitting in.</div>
+
+<div class="step"><span class="step-num">7</span><strong>Run it.</strong> With that sheet's code window open and active, press F5. Or go back into Excel, press Alt+F8, find <code>RunSetupHere</code> in the list (shown as something like "Sheet1.RunSetupHere") and run it from there.</div>
+
+<div class="note">
+That's it. <code>RunSetupHere</code> creates the three hidden data sheets, populates the case
+library, renames your chosen sheet to "PIC R&amp;N TRAC Tool", and builds the dropdown, search
+box, and results table. A confirmation box will appear when it's done.
+</div>
+
+<div class="warn">
+<strong>Why two separate code blocks, in two separate places?</strong> The dropdown and search
+box only work because Excel's Worksheet_Change event fires on code sitting inside a specific
+sheet's own module - not a generic Module. Code block 2 has to live with the sheet it's meant to
+control; pasting everything into one place (or putting block 2 into a Module instead) will
+compile, but nothing will actually respond when you use the dropdown.
+</div>
+
+<h2 id="using">Using the tool</h2>
+
+<table>
+<tr><th>Control</th><th>Location</th><th>Behaviour</th></tr>
+<tr><td><strong>TRAC Type</strong></td><td>Cell B3</td><td>A dropdown of every category. Leave it blank to see every case, sorted alphabetically by category.</td></tr>
+<tr><td><strong>Keywords</strong></td><td>Cell B4</td><td>Free-text search. If a TRAC Type is selected, this searches only within that type; if TRAC Type is blank, it searches across everything.</td></tr>
+<tr><td><strong>Favourites</strong></td><td>Any cell in a result row</td><td>Double-click to star (or unstar) that case. Starred cases always sort to the top of whatever's currently showing.</td></tr>
+<tr><td><strong>Source link</strong></td><td>Column H of the results</td><td>Click "Open" to go to the AustLII/Jade page for that decision (where a link exists).</td></tr>
+</table>
+
+<h2 id="maintaining">Maintaining it</h2>
+
+<h3>Hand-editing a case (fixing a citation, tweaking an extract, adding a new row)</h3>
+<ol>
+<li>Alt+F8, run <code>UnhidePICSheets</code>.</li>
+<li>Go to the "PIC Library" tab. Columns: Category, CaseName, Citation, Outcome, Principle, Summary, Keywords, Extract, URL, Flag, Favorite. Edit any cell, or add a new case on the first blank row below the last one.</li>
+<li>Alt+F8, run <code>HidePICSheetsAgain</code>.</li>
+<li>Run <code>RunSetupHere</code> again if you changed a Category value (so the dropdown picks it up) or want a new row to show immediately.</li>
+</ol>
+<p>Once the library has data in it, <code>RunSetupHere</code> never overwrites it again - your
+edits are safe across every future run.</p>
+
+<h3>Adding new cases without disturbing existing edits</h3>
+<p>Ask for a small standalone snippet - a short extra macro that appends just the new rows to the
+bottom of PIC Library without touching anything already there. This is the normal way to extend
+the tool over time.</p>
+
+<h3>Wiping everything and starting fresh</h3>
+<p>Run <code>ResetPICLibraryToDefaults</code> (Alt+F8). This asks for confirmation, then clears
+PIC Library completely - including any hand edits, added rows, and favourite stars - and
+rebuilds it from the AddRow list baked into Code block 1. Use this only if you genuinely want to
+discard everything and start over.</p>
+
+<h2 id="design-notes">Design notes worth knowing</h2>
+<ul>
+<li><strong>The VBA editor only reliably stores classic Windows-1252 (ANSI) text</strong>, not full Unicode. The star symbol is generated at runtime with <code>ChrW(9733)</code> rather than pasted as a literal character, because a literal star has no Windows-1252 equivalent and gets silently mangled into "?" the moment it's pasted into the editor. Ordinary punctuation like smart quotes and en-dashes (used throughout the case extracts) does have Windows-1252 equivalents, so those paste in fine as literal text.</li>
+<li><strong>Every finding in PIC Library is fact-specific</strong> to that decision's own circumstances (duration, evidence available at the time, that claimant's presentation) - none of it is a general verdict for or against any treatment modality. This matters in particular for entries about long-established or alternative therapies, where a blunt-sounding finding is about the specific facts of that case, not the modality in general.</li>
+<li><strong>Not every case has a captured source URL.</strong> Where one is missing, the Source column shows "-" instead of a broken link; the citation is still there to look up manually if needed.</li>
+</ul>
+
+<h2 id="code1">Code block 1 of 2 - Standard Module</h2>
+<p>Paste this into a Module (Insert &rarr; Module) - not a sheet's own code window.</p>
+<div class="code-block">
+  <button class="copy-btn" onclick="copyCode('code1', this)">Copy code</button>
+  <pre id="code1">&#x27; modPICLookup
+&#x27; TRAC Type (treatment/care category) -&gt; PIC decisions -&gt; Clinical Framework principle lookup,
+&#x27; plus a keyword search (scoped to the selected TRAC Type, or across everything if none is picked)
+&#x27; and a favourites system (double-click a result row on the lookup sheet to star it).
+&#x27; this standard module only holds shared/data setup code - the actual RunSetupHere entry point,
+&#x27; the Worksheet_Change handler, and the double-click favouriting handler all live in the PIC
+&#x27; Lookup sheet&#x27;s own module (code block 2), on purpose, so they always fire on the same sheet
+&#x27; object that gets built.
+&#x27; library data below is pulled from Davids own case notes, not an official SIRA/PIC feed,
+&#x27; so if a citation looks off or a new decision comes down just add/edit a row and rerun RunSetupHere
+
+Option Explicit
+
+Public Const LIB_SHEET As String = &quot;PIC Library&quot;
+Public Const CAT_SHEET As String = &quot;PIC Categories&quot;
+Public Const PRIN_SHEET As String = &quot;CF Principles&quot;
+Public Const LOOKUP_SHEET As String = &quot;PIC R&amp;N TRAC Tool&quot;
+Public Const DROPDOWN_CELL As String = &quot;B3&quot;
+Public Const SEARCH_CELL As String = &quot;B4&quot;
+
+&#x27; the VBA code editor can only reliably store classic Windows-1252 characters - a literal star
+&#x27; glyph pasted straight into source gets silently mangled into &quot;?&quot; the moment it lands there
+&#x27; (it has no Windows-1252 equivalent, unlike the dashes/curly quotes elsewhere in this file,
+&#x27; which do). Building it at runtime with ChrW instead sidesteps that entirely.
+Public Function StarChar() As String
+    StarChar = ChrW(9733)
+End Function
+
+Private Function GetOrCreateSheet(nm As String) As Worksheet
+    Dim ws As Worksheet
+    On Error Resume Next
+    Set ws = ThisWorkbook.Worksheets(nm)
+    On Error GoTo 0
+    If ws Is Nothing Then
+        Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
+        ws.Name = nm
+    Else
+        ws.Cells.Clear
+    End If
+    Set GetOrCreateSheet = ws
+End Function
+
+Public Sub SetupPrinciplesSheet()
+    Dim ws As Worksheet
+    Set ws = GetOrCreateSheet(PRIN_SHEET)
+    ws.Visible = xlSheetVeryHidden
+
+    ws.Range(&quot;A1&quot;).Value = &quot;Number&quot;
+    ws.Range(&quot;B1&quot;).Value = &quot;Principle&quot;
+    ws.Range(&quot;C1&quot;).Value = &quot;ShortLabel&quot;
+
+    AddPrinciple ws, 2, 1, &quot;Measure and demonstrate the effectiveness of treatment&quot;, &quot;Effectiveness&quot;
+    AddPrinciple ws, 3, 2, &quot;Adopt a biopsychosocial approach&quot;, &quot;Biopsychosocial&quot;
+    AddPrinciple ws, 4, 3, &quot;Empower the injured person to manage their injury&quot;, &quot;Self-management&quot;
+    AddPrinciple ws, 5, 4, &quot;Implement goals focused on optimising function, participation and return to work&quot;, &quot;Function/RTW goals&quot;
+    AddPrinciple ws, 6, 5, &quot;Base treatment on the best available research evidence&quot;, &quot;Evidence-based&quot;
+End Sub
+
+Private Sub AddPrinciple(ws As Worksheet, r As Long, num As Integer, txt As String, shortLbl As String)
+    ws.Cells(r, 1).Value = num
+    ws.Cells(r, 2).Value = txt
+    ws.Cells(r, 3).Value = shortLbl
+End Sub
+
+&#x27; expands a comma list of principle numbers e.g. &quot;1,4&quot; into &quot;1 - Effectiveness; 4 - Function/RTW goals&quot;
+&#x27; blank input just returns a dash, dont bother looking anything up
+Public Function ExpandPrinciples(codes As String) As String
+    If Trim(codes) = &quot;&quot; Then
+        ExpandPrinciples = &quot;-&quot;
+        Exit Function
+    End If
+
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Worksheets(PRIN_SHEET)
+
+    Dim parts() As String
+    parts = Split(codes, &quot;,&quot;)
+
+    Dim i As Long
+    Dim outStr As String
+    outStr = &quot;&quot;
+    For i = LBound(parts) To UBound(parts)
+        Dim n As String
+        n = Trim(parts(i))
+        Dim lbl As String
+        lbl = LookupPrincipleLabel(ws, n)
+        If outStr &lt;&gt; &quot;&quot; Then outStr = outStr &amp; &quot;; &quot;
+        outStr = outStr &amp; n &amp; &quot; - &quot; &amp; lbl
+    Next i
+
+    ExpandPrinciples = outStr
+End Function
+
+Private Function LookupPrincipleLabel(ws As Worksheet, num As String) As String
+    Dim lastRow As Long
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+
+    Dim r As Long
+    For r = 2 To lastRow
+        If CStr(ws.Cells(r, 1).Value) = num Then
+            LookupPrincipleLabel = ws.Cells(r, 3).Value
+            Exit Function
+        End If
+    Next r
+    LookupPrincipleLabel = &quot;?&quot;
+End Function
+
+&#x27; populates the library ONLY if it&#x27;s missing or empty - this is what makes hand edits (and
+&#x27; favourites) stick. once you&#x27;ve edited cells directly, RunSetupHere will never overwrite them;
+&#x27; it only rebuilds the Categories list (derived, safe) and the Lookup sheet chrome (also safe,
+&#x27; no user data there). to add new cases later without disturbing your edits, use a small
+&#x27; append-only snippet instead of this whole sub - ask for one when you&#x27;ve got new decisions to add.
+&#x27; to wipe everything (including favourites) and start over from Davids original baseline, run
+&#x27; ResetPICLibraryToDefaults.
+Public Sub SetupPICLibrarySheet()
+    Dim ws As Worksheet
+    Dim isNew As Boolean
+    On Error Resume Next
+    Set ws = ThisWorkbook.Worksheets(LIB_SHEET)
+    On Error GoTo 0
+
+    If ws Is Nothing Then
+        Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
+        ws.Name = LIB_SHEET
+        isNew = True
+    Else
+        Dim lastRow As Long
+        lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+        isNew = (lastRow &lt;= 1)
+    End If
+
+    ws.Visible = xlSheetVeryHidden
+    If Not isNew Then Exit Sub
+
+    PopulateLibraryDefaults ws
+End Sub
+
+&#x27; deliberately destructive - only run this if you want to throw away every hand edit, added
+&#x27; row, and favourite star, and go back to exactly what was shipped in the AddRow list below
+Public Sub ResetPICLibraryToDefaults()
+    Dim ans As VbMsgBoxResult
+    ans = MsgBox(&quot;This clears the whole PIC Library sheet, including any rows, edits or &quot; &amp; _
+        &quot;favourite stars you&#x27;ve added yourself, and rebuilds it from the AddRow list in the &quot; &amp; _
+        &quot;code. Continue?&quot;, vbYesNo + vbExclamation)
+    If ans &lt;&gt; vbYes Then Exit Sub
+
+    Dim ws As Worksheet
+    Set ws = GetOrCreateSheet(LIB_SHEET)
+    ws.Visible = xlSheetVeryHidden
+    PopulateLibraryDefaults ws
+    SetupCategoriesSheet
+
+    MsgBox &quot;PIC Library reset to the default set.&quot;, vbInformation
+End Sub
+
+Private Sub PopulateLibraryDefaults(ws As Worksheet)
+    ws.Range(&quot;A1:K1&quot;).Value = Array(&quot;Category&quot;, &quot;CaseName&quot;, &quot;Citation&quot;, &quot;Outcome&quot;, &quot;Principle&quot;, &quot;Summary&quot;, &quot;Keywords&quot;, &quot;Extract&quot;, &quot;URL&quot;, &quot;Flag&quot;, &quot;Favorite&quot;)
+
+    Dim r As Long
+    r = 2
+    AddRow ws, r, &quot;Physiotherapy&quot;, &quot;Stojkovski v QBE&quot;, &quot;[2023] NSWPICMP 174 (1 May 2023)&quot;, &quot;Not R&amp;N&quot;, &quot;1&quot;, &quot;Treatment producing no benefit of note cannot be reasonable, necessary or cost-effective under the SIRA guidelines.&quot;, &quot;physiotherapy, active treatment, effectiveness, cost-effectiveness, no benefit&quot;, &quot;It is the Panel’s observation that if treatment is being provided but it is not resulting in any benefit of note then it cannot be said to be reasonable and it cannot be said to be necessary. On the SIRA guidelines, it could also not to be said to be cost-effective on that basis.&quot;, &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2023/174.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Physiotherapy&quot;, &quot;NRMA v Foti&quot;, &quot;[2023] NSWPICMP 395 (16 August 2023)&quot;, &quot;Benchmark&quot;, &quot;4&quot;, &quot;Sets a staged benchmark: weekly physio is R&amp;N for the first 12 months to manage symptoms and prescribe exercise; 12-24 months should shift to supervised, progressively upgraded exercise; beyond 24 months the person should be exercising independently, with reviews tapering to fortnightly, then monthly, then six-monthly.&quot;, &quot;physiotherapy, active treatment, benchmark, staged reduction, self-management, tapering&quot;, _
+        &quot;• It is the clinical judgment of the medical members of the Panel that in most motor accident injury cases, it would be reasonable and necessary for a physiotherapist to provide treatment on a weekly basis for the first 12 months to manage symptoms (including symptoms of pain) and prescribe exercises. The medical members of the Panel are of the view that in their experience, ongoing passive treatment is not helpful in managing post-orthopaedic &quot; &amp; _
+        &quot;lower limb fractures or lower back pain. It is their clinical experience that exercise programmes addressing endurance and strength are more beneficial in rehabilitation programmes for both lower limb orthopaedic rehabilitation and to reduce lower back and lower limb pain. • Reasonable and necessary physiotherapy treatment as an injured person progresses past 12 months should, in the clinical judgment of the medical members of the Panel, consist &quot; &amp; &quot;of supervised exercises with those exercises progressed or upgraded at each review. • It is the clinical experience of the Medical Assessors that after an injured person has had 24 months of supervised physiotherapy treatment they should be confidently exercising and able to exercise independently. &quot; &amp; &quot;[...]&quot;, &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2023/395.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Physiotherapy&quot;, &quot;Pirillo v NRMA&quot;, &quot;[2024] NSWPICMP 24 (15 January 2024)&quot;, &quot;Not R&amp;N&quot;, &quot;3&quot;, &quot;Passive hands-on physio around 8 months post-accident found not effective. A short course (4 sessions) of active stretching/strengthening plus posture and lifting education was the R&amp;N treatment instead.&quot;, &quot;physiotherapy, passive treatment, active treatment, self-management, education&quot;, &quot;The Panel does not consider passive treatment modalities, such as hands on physiotherapy , some eight months post-accident to be effective treatment. The Panel considers physiotherapy to develop a graded stretching and strengthening program and to provide education on posture and lifting to be appropriate. The Panel agrees with the insurer that four physiotherapy sessions would be reasonable to achieve those aims.&quot;, _
+        &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2024/24.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Physiotherapy&quot;, &quot;Rosenbauer v Allianz&quot;, &quot;[2022] NSWPICMP 470 (17 November 2022)&quot;, &quot;Not R&amp;N&quot;, &quot;4&quot;, &quot;Concurrent, overlapping physio and exercise physiology found not R&amp;N. The intended pathway is physio, then EP, then a self-managed maintenance program - not both running at once indefinitely.&quot;, &quot;physiotherapy, exercise physiology, active treatment, duplication, sequencing, self-management&quot;, &quot;Furthermore, there has been an overlap of similar services between physio and exercise physiology, which would appear inappropriate in view of the fact that one was meant to initially progress from physiotherapy to exercise physiology and then progress to a self-maintenance program. That certainly has not appeared to be the case in this instance.&quot;, &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2022/470.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Physiotherapy&quot;, &quot;Dong v Allianz&quot;, &quot;[2025] NSWPICMP 842 (30 October 2025)&quot;, &quot;Not R&amp;N&quot;, &quot;3&quot;, &quot;Physiotherapy continuing more than 6 years post-accident found not reasonable and necessary.&quot;, &quot;physiotherapy, passive treatment, treatment duration, indefinite treatment, ankle, fracture&quot;, &quot;The Panel has found that the accident caused an injury to the claimant’s left ankle, including a displaced fracture of the lateral malleolus. The proposed treatment is therefore related to that injury. Some six years after the accident, with established chronic symptoms, the Panel is not persuaded that further physiotherapy treatment is reasonable and necessary because it is unlikely to be effective in relieving the claimant’s pain and thereby &quot; &amp; &quot;optimise his prospects of recovery and returning to work and or other activities.&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Physiotherapy&quot;, &quot;AAMI v Kumari&quot;, &quot;[2026] NSWPICMP 450&quot;, &quot;Not R&amp;N&quot;, &quot;3&quot;, &quot;Remaining sessions under an Allied Health Recovery Request not R&amp;N - self-guided exercise was the preferred ongoing treatment given the extensive physio already provided.&quot;, &quot;physiotherapy, active treatment, self-guided exercise, self-management, treatment duration, shoulder&quot;, &quot;The “remaining 2 sessions of physiotherapy pursuant to Allied Health Recovery Request No. 7 dated 15 May 2025” is considered by the Panel to be related to the injuries caused by the motor accident given the post-accident bodily complaints. However, additional physiotherapy is not considered to be reasonable and necessary as self-guided exercises are the preferred ongoing treatment in a situation where the claimant has already undergone extensive &quot; &amp; &quot;physiotherapy following the motor accident.&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Exercise Physiology&quot;, &quot;QBE v Chilukuri&quot;, &quot;[2024] NSWPICMP 70 (12 February 2024)&quot;, &quot;Not R&amp;N&quot;, &quot;1&quot;, &quot;Over 50 combined physio/EP sessions without evidenced benefit, plus surveillance showing unrestricted activity inconsistent with reported complaints - found not R&amp;N. Panel expressly invoked the Clinical Framework principle of measuring and demonstrating treatment effectiveness.&quot;, &quot;exercise physiology, active treatment, surveillance, effectiveness, cost-effectiveness&quot;, _
+        &quot;The Review Panel also accepts the submission of the insurer that the claimant has undergone extensive treatment in the form of physiotherapy and exercise physiology amounting to over 50 treatment sessions. The claimant’s evidence is that he has not benefited from such treatment. The insurer says that is therefore not reasonable to provide further treatment if the claimant will not benefit from this. One of the guiding principles of the clinical &quot; &amp; &quot;framework, is to be able to measure and demonstrate of the effectiveness of treatment. In this instance it is the finding of the Panel that the effect is that there is no benefit. The claimant’s complaints are inconsistent with the surveillance observations which records him, over many different days, performing unrestricted &quot; &amp; &quot;activities.&quot;, &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2024/70.html&quot;, &quot;&quot;, _
+        &quot;&quot;
+    AddRow ws, r, &quot;Exercise Physiology&quot;, &quot;Rosenbauer v Allianz&quot;, &quot;[2022] NSWPICMP 470 (17 November 2022)&quot;, &quot;Not R&amp;N&quot;, &quot;4&quot;, &quot;Same overlap finding as under Physiotherapy - EP running concurrently with physio (rather than sequentially) found not R&amp;N.&quot;, &quot;exercise physiology, physiotherapy, active treatment, duplication, sequencing, self-management&quot;, &quot;Furthermore, there has been an overlap of similar services between physio and exercise physiology, which would appear inappropriate in view of the fact that one was meant to initially progress from physiotherapy to exercise physiology and then progress to a self-maintenance program. That certainly has not appeared to be the case in this instance.&quot;, &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2022/470.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Remedial Massage&quot;, &quot;Badal v AAMI&quot;, &quot;[2024] NSWPICMP 208 (5 April 2024)&quot;, &quot;Not R&amp;N&quot;, &quot;3&quot;, &quot;Further physio, hydrotherapy and remedial massage found not R&amp;N once the claimant reported no functional or symptomatic benefit. Passive interventions without sustained benefit were said to reinforce self-perceived disability rather than support self-management.&quot;, &quot;remedial massage, hydrotherapy, physiotherapy, passive treatment, self-management, dependency, no benefit, neck, lumbar spine, hip&quot;, _
+        &quot;Future physiotherapy, hydrotherapy and remedial massage (fortnightly) Ms Badal says she is receiving physiotherapy paid for by the NDIS. The claimant did not inform the examining Medical Assessors that she is currently having any hydrotherapy or remedial massage. The claimant says she has received no functional or symptomatic benefits from any of these therapies and says she is getting “worse and worse.” There is no indication for continuation &quot; &amp; _
+        &quot;of passive physiotherapy treatment or remedial massage or more active hydrotherapy in that case. Physical therapies should not continue, in the Medical Assessor’s clinical judgment unless it is helpful and achieving sustained benefit. Further physiotherapy, hydrotherapy and remedial massage is not therefore reasonable and necessary in the circumstances. It is the clinical judgment of the medical members of the Panel that passive treatment &quot; &amp; &quot;interventions are not indicated for patients with chronic pain and will not give rise to worthwhile, enduring alteration in either pain complaints or else function. Rather, passive interventions such as remedial massage only reinforce the self-perception of disability and associated activity &quot; &amp; &quot;limitations.&quot;, &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2024/208.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Chiropractic&quot;, &quot;Mitchell and Comcare (Compensation)&quot;, &quot;[2021] AATA 610 (23 March 2021)&quot;, &quot;Not R&amp;N (this fact pattern)&quot;, &quot;3,5&quot;, &quot;The &#x27;shifting reasonableness&#x27; doctrine (applies to any treatment type, not chiropractic specifically): treatment reasonable at the outset can become unreasonable if continued indefinitely. On these facts - around 530 consultations (chiropractic, acupuncture and massage together) over 20 years for one claimant&#x27;s chronic low back pain - the indefinite course was found unreasonable, since no evidence supported it at that duration and the Clinical &quot; &amp; &quot;Framework favours building self-management skills. Not a general finding against chiropractic, acupuncture or massage as modalities.&quot;, _
+        &quot;chiropractic, remedial massage, acupuncture, passive treatment, manual therapy, shifting reasonableness, treatment duration, indefinite treatment, self-management, evidence-based, lumbar spine, back&quot;, &quot;March 2021) The Respondent also referred to the notion of “shifting reasonableness”. This is a concept that is frequently applied to therapy or treatment such as physiotherapy, chiropractic and allied health care services such as acupuncture and massage. Where there has been a protracted course of treatment and where such treatment was initially reasonable, there may be a point reached where it ceases to be reasonable. This is a perfectly &quot; &amp; _
+        &quot;comprehensible concept. Therefore, treatment that may initially have been reasonable can in the long-term become unreasonable.[131] Another relevant factor in this consideration arises from the evidence of Mr Papagoras which has been referred to earlier. A consistent theme of his evidence was that the proposed treatment was not consistent with the applicable guiding principles of the Clinical Framework. He observed that as far as he is aware, &quot; &amp; &quot;there is no evidence that supports ongoing, indefinite treatment such as chiropractic , acupuncture and massage for the management of chronic lower back conditions. He expressed the opinion that the treatment therefore is not reasonable in the circumstances, and that the Applicant should continue in self-management as a reasonable solution for managing her present conditions. &quot; &amp; &quot;[...]&quot;, _
+        &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/cth/AATA/2021/610.html&quot;, &quot;Not a PIC decision (AAT/Comcare) - persuasive only, frequently cited in PIC reasoning&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Remedial Massage&quot;, &quot;Mitchell and Comcare (Compensation)&quot;, &quot;[2021] AATA 610 (23 March 2021)&quot;, &quot;Not R&amp;N (this fact pattern)&quot;, &quot;3,5&quot;, &quot;The &#x27;shifting reasonableness&#x27; doctrine (applies to any treatment type, not chiropractic specifically): treatment reasonable at the outset can become unreasonable if continued indefinitely. On these facts - around 530 consultations (chiropractic, acupuncture and massage together) over 20 years for one claimant&#x27;s chronic low back pain - the indefinite course was found unreasonable, since no evidence supported it at that duration and the Clinical &quot; &amp; &quot;Framework favours building self-management skills. Not a general finding against chiropractic, acupuncture or massage as modalities.&quot;, _
+        &quot;chiropractic, remedial massage, acupuncture, passive treatment, manual therapy, shifting reasonableness, treatment duration, indefinite treatment, self-management, evidence-based, lumbar spine, back&quot;, &quot;March 2021) The Respondent also referred to the notion of “shifting reasonableness”. This is a concept that is frequently applied to therapy or treatment such as physiotherapy, chiropractic and allied health care services such as acupuncture and massage. Where there has been a protracted course of treatment and where such treatment was initially reasonable, there may be a point reached where it ceases to be reasonable. This is a perfectly &quot; &amp; _
+        &quot;comprehensible concept. Therefore, treatment that may initially have been reasonable can in the long-term become unreasonable.[131] Another relevant factor in this consideration arises from the evidence of Mr Papagoras which has been referred to earlier. A consistent theme of his evidence was that the proposed treatment was not consistent with the applicable guiding principles of the Clinical Framework. He observed that as far as he is aware, &quot; &amp; &quot;there is no evidence that supports ongoing, indefinite treatment such as chiropractic , acupuncture and massage for the management of chronic lower back conditions. He expressed the opinion that the treatment therefore is not reasonable in the circumstances, and that the Applicant should continue in self-management as a reasonable solution for managing her present conditions. &quot; &amp; &quot;[...]&quot;, _
+        &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/cth/AATA/2021/610.html&quot;, &quot;Not a PIC decision (AAT/Comcare) - persuasive only, frequently cited in PIC reasoning&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Remedial Massage&quot;, &quot;Ni v AAMI&quot;, &quot;[2023] NSWPICMP 241 (24 May 2023)&quot;, &quot;Mixed&quot;, &quot;5&quot;, &quot;Up to 20 past remedial massage sessions found R&amp;N, but indefinite future massage (at any frequency, for life) found not R&amp;N. Also see Chinese Medicine category - same case.&quot;, &quot;remedial massage, passive treatment, treatment duration, indefinite treatment, leg&quot;, &quot;Further, the Insurer submits that the request for Chinese herbal medicine is not in line with Clinical Framework for the Delivery of Health Services – based treatment on the best available research evidence (Part 4.77 (e) of the Motor Accident Guidelines). The Panel finds the following treatment is reasonable and necessary in the circumstances: (a) up to 20 past remedial massage sessions, from the time of the accident to the time of the &quot; &amp; _
+        &quot;Commission’s assessment, for treatment of the claimant’s leg. The Panel finds the following treatment is not reasonable and necessary in the circumstances: (a) Chinese herbal remedies as prescribed by Mr Y F Zhang, between April and July 2021, for treatment of the claimant’s leg; (b) future remedial massage sessions (at any frequency) from the time of the Commission’s assessment and ongoing for the remainder of the claimant’s life expectancy, &quot; &amp; &quot;and (c) future Chinese herbal remedies as prescribed by Mr Y F Zhang, from the time of the Commission’s assessment and ongoing for the remainder of the claimant’s life expectancy, for treatment of the claimant’s leg.&quot;, &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2023/241.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Hydrotherapy&quot;, &quot;Badal v AAMI&quot;, &quot;[2024] NSWPICMP 208 (5 April 2024)&quot;, &quot;Not R&amp;N&quot;, &quot;3&quot;, &quot;Fortnightly hydrotherapy found not R&amp;N alongside physio and remedial massage where the claimant reported no benefit and passive/active-in-water treatment was not producing sustained improvement.&quot;, &quot;hydrotherapy, remedial massage, physiotherapy, passive treatment, active treatment, self-management, no benefit, neck, lumbar spine, hip&quot;, &quot;Future physiotherapy, hydrotherapy and remedial massage (fortnightly) Ms Badal says she is receiving physiotherapy paid for by the NDIS. The claimant did not inform the examining Medical Assessors that she is currently having any hydrotherapy or remedial massage. The claimant says she has received no functional or symptomatic benefits from any of these therapies and says she is getting “worse and worse.” There is no indication for continuation &quot; &amp; _
+        &quot;of passive physiotherapy treatment or remedial massage or more active hydrotherapy in that case. Physical therapies should not continue, in the Medical Assessor’s clinical judgment unless it is helpful and achieving sustained benefit. Further physiotherapy, hydrotherapy and remedial massage is not therefore reasonable and necessary in the circumstances. It is the clinical judgment of the medical members of the Panel that passive treatment &quot; &amp; &quot;interventions are not indicated for patients with chronic pain and will not give rise to worthwhile, enduring alteration in either pain complaints or else function. Rather, passive interventions such as remedial massage only reinforce the self-perception of disability and associated activity &quot; &amp; &quot;limitations.&quot;, &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2024/208.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;TENS / Electrical Stimulation&quot;, &quot;Sarwary v Allianz&quot;, &quot;[2023] NSWPICMP 125 (31 March 2023)&quot;, &quot;R&amp;N&quot;, &quot;5&quot;, &quot;A TENS machine (low cost, no adverse effects, recommended by the treating pain specialist to reduce reliance on pharmacology) found R&amp;N even without strong literature support. Absence of evidence of effect is not the same as evidence of an absence of effect.&quot;, &quot;TENS, electrical stimulation, passive treatment, low-cost aid, evidence-based, cost-effectiveness, harm/risk, research evidence, pharmacology alternative&quot;, _
+        &quot;As was noted in the submissions, a TENS machine provides an electrical stimulation which is designed to decrease the perception of pain. The TENS machine provides a low varied current across the skin designed to interfere with the transmission of pain. The cost of the treatment is minimal and was recommended by the treating pain specialist. The intention of the treating specialist was to use this as an aid in reducing reliance of pharmacology. &quot; &amp; _
+        &quot;The Panel, comprised of two medical experts, accept that the treatment is a recognised and appropriate treatment to alleviate a pain condition. The treatment is widely accepted by the medical profession and has been utilised for many decades. It may or may not be effective. The insurer referred to an absence of support in the literature. However, an absence of evidence of effect is not the same as evidence of an absence of effect. There is no &quot; &amp; &quot;downside with the treatment as it has no adverse effects. As we noted, it has the potential to reduce the perception of pain and reduce reliance on pharmacology. As is clear from the medical evidence, the claimant presents as pain focused with a depressive condition. In these circumstances, this treatment was tailored to the claimant’s circumstances. &quot; &amp; &quot;[...]&quot;, _
+        &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2023/125.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Chinese Medicine / Herbal Remedies&quot;, &quot;Ni v AAMI&quot;, &quot;[2023] NSWPICMP 241 (24 May 2023)&quot;, &quot;Not R&amp;N&quot;, &quot;5&quot;, &quot;Chinese herbal remedies found not R&amp;N - no medically accepted peer-reviewed evidence of long-term effectiveness. Insurer&#x27;s submission and Panel&#x27;s finding expressly invoked the Clinical Framework principle of basing treatment on the best available research evidence.&quot;, &quot;chinese medicine, herbal remedies, complementary medicine, passive treatment, evidence-based, research evidence, leg&quot;, _
+        &quot;Further, the Insurer submits that the request for Chinese herbal medicine is not in line with Clinical Framework for the Delivery of Health Services – based treatment on the best available research evidence (Part 4.77 (e) of the Motor Accident Guidelines). The Panel finds the following treatment is reasonable and necessary in the circumstances: (a) up to 20 past remedial massage sessions, from the time of the accident to the time of the &quot; &amp; _
+        &quot;Commission’s assessment, for treatment of the claimant’s leg. The Panel finds the following treatment is not reasonable and necessary in the circumstances: (a) Chinese herbal remedies as prescribed by Mr Y F Zhang, between April and July 2021, for treatment of the claimant’s leg; (b) future remedial massage sessions (at any frequency) from the time of the Commission’s assessment and ongoing for the remainder of the claimant’s life expectancy, &quot; &amp; &quot;and (c) future Chinese herbal remedies as prescribed by Mr Y F Zhang, from the time of the Commission’s assessment and ongoing for the remainder of the claimant’s life expectancy, for treatment of the claimant’s leg.&quot;, &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2023/241.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Medicinal Cannabis / Cannabidiol&quot;, &quot;DMM v NRMA&quot;, &quot;[2026] NSWPICMP 86 (5 February 2026)&quot;, &quot;Not R&amp;N&quot;, &quot;5&quot;, &quot;Medicinal cannabis for a psychiatric condition found not R&amp;N - RANZCP and TGA guidelines do not support its use for psychiatric conditions, even though the treatment was accepted as related to the accident.&quot;, &quot;medicinal cannabis, medication, pharmacological, evidence-based, guidelines, psychiatric treatment, psychological injury&quot;, &quot;Guidelines of the Royal Australian and New Zealand College of Psychiatrists and the Therapeutic Goods Administration of Australia are not supportive of the use of medicinal cannabis for psychiatric conditions. The Panel therefore concludes that the proposed treatment with medicinal cannabis is related to the subject motor accident but is not reasonable and necessary .&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Medicinal Cannabis / Cannabidiol&quot;, &quot;NRMA &amp; Anor v McCarthy&quot;, &quot;[2026] NSWPICMP 184 (12 March 2026)&quot;, &quot;Not R&amp;N&quot;, &quot;5&quot;, &quot;Medicinal cannabis prescription found not R&amp;N where the insurer submitted, and the Panel accepted, there was no definitive research supporting improvement in the claimant&#x27;s pain and psychiatric symptoms.&quot;, &quot;medicinal cannabis, medication, pharmacological, evidence-based, research evidence, psychiatric treatment, psychological injury&quot;, &quot;The insurer submits there is no definitive research that supports the claimant’s contention that medicinal cannabis will improve his pain symptoms and psychiatric condition. The Panel finds that the medicinal prescription of cannabis prescribed by Dr Christopher Lloyd is not reasonable and necessary in the circumstances.&quot;, &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2026/184.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Medicinal Cannabis / Cannabidiol&quot;, &quot;Bradley v Allianz&quot;, &quot;[2021] NSWPICMP 226 (1 December 2021)&quot;, &quot;Not R&amp;N&quot;, &quot;5&quot;, &quot;Referral to a Cannabis Access Clinic and funding of medicinal cannabis (CBD) found not R&amp;N - clinical research was limited and largely anecdotal, and the Panel considered it likely to cause harm/addiction and not accepted by medical experts as effective.&quot;, &quot;medicinal cannabis, cannabidiol, medication, pharmacological, evidence-based, harm/risk, research evidence&quot;, _
+        &quot;36. The insurer submitted that the use of Cannabidiol “is the subject of ongoing research and clinical trials, with minimal concrete evidence to demonstrate effectiveness in the context of soft tissue injuries and aggravations of psychiatric injuries arising from motor accident injuries”. 52. The insurer referred to a report by Mr Andrew Penn dated 5 October 2019 which noted that clinical research on the use of cannabidiol (CBD) was limited and &quot; &amp; _
+        &quot;most of the user information was anecdotal user data.[8] 70. The Panel does not accept, in Ms Bradley’s circumstances that the referral for specialist review to the Cannabis Access Clinic and to fund the cost of medical cannabis is reasonable and necessary . It Reasonable and necessary Page 72 the Cannabis Access Clinic and to fund the cost of medical cannabis is reasonable and necessary . It does not accept that the proposed treatment is &quot; &amp; &quot;appropriate and effective, and we believe it is likely to lead to harm and addiction. The treatment is otherwise not accepted by medical experts as being appropriate or likely to be effective. Insurance Australia Limited t/as NRMA Insurance v &quot; &amp; &quot;BYA&quot;, &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2021/226.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Spinal / Joint Injections&quot;, &quot;El-Halabi v Allianz&quot;, &quot;[2026] NSWPICMP 466&quot;, &quot;Not R&amp;N&quot;, &quot;5&quot;, &quot;Cervical facet joint injections found not R&amp;N where the claimant&#x27;s pain distribution did not match the typical sclerotomal/anatomical referral pattern expected for the targeted facet joints.&quot;, &quot;spinal injections, facet joint injection, interventional procedure, imaging correlation, consistency of symptoms, cervical spine, neck&quot;, &quot;However, the Medical Assessors found these cervical spine (facet joint) injections not reasonable and necessary, given the pain distribution in Mr El-Halabi, is not in keeping with the typical sclerotomal/anatomical referral patterns expected for C34, C45 and C56 facet joints that would typically involve the lateral neck, trapezius and various segments of the shoulder blade. Whilst there is trapezial pain, this is a much lesser problem than &quot; &amp; _
+        &quot;symptoms overlying the neck itself. A diagram of the usual sclerotomal patterns (i.e. patterns of symptomatic referral from the various facet joints) is attached to this report of the medical assessment. [IMAGE UNABLE TO RENDER] Mr El-Halabi’s main complaint is that of axial neck pain without spread to the scapular/occipital regions. There is only occasional radiation to the right trapezial region although there is marked pain at the right &quot; &amp; &quot;shoulder joint stemming from soft tissue injury in this location (rather than from symptoms referred from the neck). Mr El-Halabi also does not warrant any nerve root injections given there are no signs of upper limb radiculopathy. He is not experiencing symptoms in an anatomical pattern, as per the attached dermatomal symptom diagram. He has no upper limb pain (aside from that due to the right shoulder soft tissue injury). &quot; &amp; &quot;[...]&quot;, _
+        &quot;&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Spinal Surgery&quot;, &quot;QBE v Tregear&quot;, &quot;[2025] NSWPICMP 413 (11 June 2025)&quot;, &quot;R&amp;N&quot;, &quot;1&quot;, &quot;Discectomy and fusion found R&amp;N - the surgery led to a significant improvement in symptoms and the need for it was fairly attributed to the accident. Effectiveness after the fact supported the finding.&quot;, &quot;spinal surgery, discectomy, fusion, interventional procedure, effectiveness, causation, spine&quot;, &quot;• This surgery, conducted on 8 October 2024, has led to a significant improvement in his symptoms. The requirement for the discectomy and fusion can fairly be attributed to the subject motor vehicle accident. • That is in the view of the panel requirement for the surgery was caused by the motor vehicle accident. The surgery the claimant has undergone was reasonable and necessary in the circumstance. It has benefited the claimant.&quot;, _
+        &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2025/413.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Spinal Surgery&quot;, &quot;Peng v Allianz&quot;, &quot;[2023] NSWPICMP 558 (6 November 2023)&quot;, &quot;R&amp;N (causation-dependent)&quot;, &quot;&quot;, &quot;Lumbar fusion found R&amp;N, but the Panel stressed the R&amp;N question largely turned on the causation finding (whether the pre-existing spondylolisthesis was aggravated by the accident) rather than on treatment merits alone. Useful for framing surgery disputes as causation-first.&quot;, &quot;spinal surgery, fusion, interventional procedure, causation, pre-existing condition, lumbar spine, back&quot;, _
+        &quot;The essential question for determination by the Panel is whether the lumbar fusion relates to an injury caused by the accident. Whether or not the requested treatments were reasonable and necessary in the circumstances largely depends upon the Panel’s determination of the causation issue. The Panel has been provided with a plethora of clinical material relating to the pre and post- accident condition of the claimant’s lumbar spine. It is &quot; &amp; _
+        &quot;necessary in issue that he had a pre-existing degenerative lower lumbar spine, being L4/L5 spondylolisthesis, and now has severe L5 radiculopathy, which is causing foot drop. It is not in dispute that the claimant was active before the motor accident. Following the motor accident, but prior to surgery, his symptoms where substantially numbness in the legs, particularly the left leg, numbness to the toes and pain in the left glutes. It is not in &quot; &amp; &quot;dispute that the claimant sustained an aggravation to the lumbar spine as a result of the accident. In those circumstances, the Panel does not think it is necessary to conduct a physical re-examination of the claimant, as it would be unlikely to yield any fresh relevant information. &quot; &amp; &quot;[...]&quot;, &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2023/558.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Spinal Surgery&quot;, &quot;Mason-Balshaw v NRMA&quot;, &quot;[2025] NSWPICMP 501 (10 July 2025)&quot;, &quot;Not R&amp;N&quot;, &quot;5&quot;, &quot;Sets out criteria for cervical fusion: only indicated for fracture/instability or nerve root/cord compression where symptoms correlate with imaging. Fusion found not R&amp;N here - the affected nerve level did not correspond to the claimant&#x27;s actual symptoms.&quot;, &quot;spinal surgery, fusion, interventional procedure, imaging correlation, consistency of symptoms, benchmark, cervical spine, neck&quot;, _
+        &quot;Cervical fusion is a major operative procedure and should only be undertaken if there are fractures/spinal instability or for relief of compression of spinal cord or nerve roots where the patient’s symptoms correspond with the findings on imaging. Whilst there is multilevel nerve root compression demonstrated on the MRI scan, this is occurring at the C5/6 and C6/7 levels, but not affecting the C8 nerve root, which could be (potentially) &quot; &amp; _
+        &quot;responsible for the claimant’s current symptoms at the left ring and little fingers. The Panel also notes that nerve conduction studies conducted during 2021 also demonstrated a mild left ulnar nerve lesion that could also be contributing to the latter symptoms. Whilst Dr Coughlan considered surgery was necessary for relief of painful discopathy the Panel does not consider that to be one of the indicators for spinal surgery in the absence of &quot; &amp; _
+        &quot;radiculopathy or myelopathy. The Panel also notes there was no neck deformity, no listhesis and no large disc hernia which would otherwise support the need for surgery. Given the absence of objective neurological abnormalities and the absence of any cervical spinal instability plus the lack of correlation between reported neurological symptoms and imaging findings, the proposed cervical decompression and fusion whilst causally related to the &quot; &amp; &quot;accident is neither reasonable nor necessary.&quot;, &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2025/501.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Spinal Surgery&quot;, &quot;Deo v NRMA&quot;, &quot;[2025] NSWPICMP 118 (25 February 2025)&quot;, &quot;Not R&amp;N&quot;, &quot;5&quot;, &quot;Proposed surgery found not R&amp;N - no high level of certainty that any structural pathology was causing the claimant&#x27;s widespread complaints, so the Panel was doubtful surgery would produce any benefit.&quot;, &quot;spinal surgery, interventional procedure, consistency of symptoms, causation, uncertainty, spine&quot;, &quot;(f) Dr O’Neil the claimant’s treating neurologist for her MS over several years expressed the view that there should be a high level of certainty of any structural pathology causing symptoms before the surgery takes place; The Panel believes that there is “no high level of certainty of any structural pathology” causing the claimant’s symptoms. With Ms Deo’s widespread complaints, the Panel is extremely doubtful that the surgery proposed will &quot; &amp; &quot;lead to any benefit.&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Spinal Surgery&quot;, &quot;Vivolo v NRMA&quot;, &quot;[2023] NSWPICMP 544 (20 October 2023)&quot;, &quot;Not R&amp;N&quot;, &quot;1,5&quot;, &quot;Disc replacement surgery found not R&amp;N - widespread symptoms had already failed to respond to extensive management (including prior surgery), with evidence of abnormal illness behaviour and inconsistent examination findings.&quot;, &quot;spinal surgery, disc replacement, interventional procedure, abnormal illness behaviour, consistency of symptoms, treatment duration, spine&quot;, _
+        &quot;“Mr Vivolo has developed fairly widespread migratory musculoskeletal symptoms in the almost two years since the subject motor vehicle accident. His presentation today was unusual. There was evidence of abnormal illness behaviour. He was pain focused with a heightened pain response and there was some inconsistency in his clinical examination particularly in relation to observed spontaneous movements of the upper limbs and neurological examination &quot; &amp; _
+        &quot;of the lower limbs. His various treating specialists have recommended further surgery to address ongoing symptoms and functional limitations in the left wrist, right hip and left ankle.” In respect of the lumbar spine, Dr Powell found no instability or radiculopathy with evidence of abnormal illness behaviour. The doctor did not recommend lumbar surgery by way of total disc replacement as the widespread injuries had “failed to respond to &quot; &amp; &quot;extensive management programs including surgery to date”. The Medical Assessors otherwise do not support the proposed disc replacement surgery. That procedure is not supported by Dr Lee and Dr Powell. The procedure is otherwise contraindicated in light of the Panel findings of inconsistency in &quot; &amp; &quot;presentation.&quot;, &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2023/544.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Pain Management&quot;, &quot;Badal v AAMI&quot;, &quot;[2024] NSWPICMP 208 (5 April 2024)&quot;, &quot;Not R&amp;N&quot;, &quot;3&quot;, &quot;Multidisciplinary pain management and rehabilitation found not R&amp;N where the claimant was not open to a change of management approach - openness to change is necessary for such a program to produce any benefit.&quot;, &quot;pain management, multidisciplinary program, biopsychosocial, capacity vs motivation, self-management&quot;, &quot;April 2024) The claimant is unlikely to benefit from rehabilitation services and multidisciplinary pain management given her non English-speaking background, cultural and psychosocial factors, the length of time elapsed since the accident and the resistance of symptoms/presentation to the multiple treatment interventions applied to date. The claimant has demonstrated to the examining Medical Assessors that she is not open to new ways of thinking &quot; &amp; _
+        &quot;about, and managing, her persistent pain. An openness to a change of management approach would be necessary for any benefits to be obtained from a multidisciplinary pain management programme and rehabilitation . Currently, she displays many unhelpful ideas and beliefs about her condition. She views herself as an invalid and this has been reinforced by the provision of carer assistance for many activities of which she would be capable and &quot; &amp; &quot;prescription of long-term opioid medications, which are not clinically indicated for chronic (benign) pain syndrome. Future pain management intervention and rehabilitation services are not reasonable and necessary in the circumstances.&quot;, &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2024/208.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Pain Management&quot;, &quot;Isaac v GIO&quot;, &quot;[2023] NSWPICMP 676 (15 December 2023)&quot;, &quot;Principle&quot;, &quot;2&quot;, &quot;Education is identified as a primary treatment for chronic pain - without adequate explanation, claimants often become distressed about pain, fear doing damage, and reduce daily activity, worsening the biopsychosocial picture.&quot;, &quot;pain management, education, biopsychosocial, self-management, chronic pain, neck&quot;, &quot;December 2023) As stated, the diagnosis here is chronic (musculoskeletal) pain that has arisen from the circumstances of this accident (stress and fear at the time of the accident and the past trauma) increase the likelihood that chronic pain or central sensitization may arise. Without adequate explanation of this to the claimant, people often become distressed or concerned about the level of pain thinking they may be doing damage and there is a &quot; &amp; _
+        &quot;diagnosis missed. Due to this, in turn their ability to participate in or conduct daily activities becomes reduced. This is indeed the pattern that this claimant has reported and is consistent with that reported in the documentation. For this reason, she has then sought domestic help to undertake the duties in at home. However, it is the assessment of the Panel that if the claimant does undertake appropriate pain management or physiotherapy &quot; &amp; _
+        &quot;treatment, she will improve her functional capacity to be able to undertake domestic duties in the future. This opinion is based on the fact that the claimant by herself reportedly has a goal to achieve this. Specifically, her goal is to achieve independent ability to manage or clean her house within six months, assuming she is provided with the appropriate treatment in that time frame. Hence domestic assistance for remainder of her life in the &quot; &amp; &quot;opinion of the Panel is not reasonable and necessary .&quot;, &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2023/676.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Psychology&quot;, &quot;NRMA v El Ayoubi&quot;, &quot;[2023] NSWPICMP 477 (27 September 2023)&quot;, &quot;Principle&quot;, &quot;3&quot;, &quot;Treatment guidelines for Adjustment Disorder favour self-efficacy and behavioural activation over a passive role. Continuing normal domestic/routine tasks is itself part of the treatment - replacing them with paid assistance can undercut recovery.&quot;, &quot;psychology, psychological therapy, self-efficacy, self-management, biopsychosocial, dependency, behavioural activation&quot;, _
+        &quot;Medical Assessor Piebenga and Mangipudi note treatment guidelines for Adjustment Disorders advise a focus on self-efficacy and behavioural activation to promote a more active versus passive role and consider continuing a routine of domestic tasks would have provided remedial activity consistent with these guidelines. We also note the relationship between low levels of daily-living activities and depression[2] and the strong correlation between &quot; &amp; _
+        &quot;physical activity and perceived health, functional fitness and mood. In particular self limiting behaviour including withdrawal or changes in usual roles or occupations can lead to increased dependency, lack of confidence and depression. The research suggests that people with depression benefit from structure and planning their day to involve purposeful activities including exercise, socialisation and daily tasks. And that participating in daily &quot; &amp; &quot;tasks assists with maintaining a structured routine and also provides activity scheduling, which reduces demands on motivation. These are appropriate tools for managing symptoms of depression . We do not consider the proposed treatment (namely past and future domestic assistance) is required due to Ms El Ayoubi’s psychological &quot; &amp; &quot;injuries.&quot;, &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2023/477.html&quot;, &quot;&quot; _
+        , &quot;&quot;
+    AddRow ws, r, &quot;Diagnostic Imaging (MRI/CT/X-ray)&quot;, &quot;AAMI v Kumari&quot;, &quot;[2026] NSWPICMP 450&quot;, &quot;Not R&amp;N&quot;, &quot;1&quot;, &quot;A further MRI found not R&amp;N where an existing MRI already showed the relevant pathology was degenerative in nature and unrelated to the accident - a repeat scan would add no clinical value.&quot;, &quot;diagnostic imaging, MRI, degenerative changes, causation, no benefit, shoulder&quot;, &quot;In respect of the dispute as to whether a referral for an MRI of the right shoulder is related to the injury caused by the accident and whether it is reasonable and necessary, the Panel accepts that due to the complaints of right shoulder symptoms an MRI is related to the motor accident. However, an MRI was taken of the right shoulder on 21 August 2024. It is not reasonable and necessary that a further MRI be undertaken, particularly given that &quot; &amp; _
+        &quot;the pathology noted therein is degenerative in nature and not caused by the motor accident. In respect of the dispute as to whether referral for an MRI of the cervical spine is related to the injury caused by the accident and whether it is reasonable and necessary, the Panel accepts that complaints of cervical spine symptoms after the motor accident deems it related to the injury caused by the motor accident. However, the Panel does not consider &quot; &amp; &quot;further MRI imaging of the cervical spine to be reasonable and necessary in circumstances where such an investigation occurred on 22 August 2024. There is no indication for a need for further MRI investigation, especially considering the soft tissue nature of the injury sustained as a result of the motor &quot; &amp; &quot;accident.&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Specialist Medical Consultations&quot;, &quot;Bungate v NRMA&quot;, &quot;[2025] NSWPICMP 562 (31 July 2025)&quot;, &quot;Mixed&quot;, &quot;1&quot;, &quot;Six consultations with a neurologist to assess options (e.g. Botox) found R&amp;N, but further orthopaedic consultations found not R&amp;N. General principle: consultations should continue only while helpful and appraised for effectiveness, not indefinitely, and not for treatment the claimant does not wish to pursue.&quot;, &quot;specialist consultation, medical review, duplication, effectiveness&quot;, _
+        &quot;Six consultations with a neurologist would establish if there were useful medications or other therapies such as Botulinum Toxin injections which could assist him. Again, consultations and treatment should be ongoing, only if helpful, not indefinitely in the absence of appraisal of effectiveness/outcome. Further orthopaedic consultations are neither related nor reasonable and necessary due to the accident, especially for treatment he does not &quot; &amp; &quot;wish to pursue nor which is medically indicated.&quot;, &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2025/562.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Specialist Medical Consultations&quot;, &quot;El-Halabi v Allianz&quot;, &quot;[2026] NSWPICMP 466&quot;, &quot;Not R&amp;N&quot;, &quot;1&quot;, &quot;A referral for consultation with a further specialist of the same type as one already consulted found not R&amp;N absent a clear clinical reason for the duplication.&quot;, &quot;specialist consultation, medical review, duplication, cervical spine, neck&quot;, &quot;However, the panel found the consultation with Dr Mir not reasonable and necessary because Mr El- Halabi had already consulted a pain physician being Dr David Manohar. A consultation with another pain physician was not necessary given Dr Manohar had already seen Mr El-Halabi for pain management as a treating doctor.&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Domestic Assistance / Attendant Care&quot;, &quot;NRMA v Huynh&quot;, &quot;[2024] NSWPICMP 677 (24 September 2024)&quot;, &quot;Not R&amp;N (as proposed)&quot;, &quot;3&quot;, &quot;Replacing a claimant&#x27;s parenting/domestic role with ongoing commercial care found not the most effective long-term strategy. Clinical Framework quoted directly: independence does not mean symptom-free, and failure to empower self-management can entrench dependency and illness behaviour. OT-led self-management training plus limited hours of heavy-task assistance (4 hrs/wk) and parenting support was the R&amp;N alternative.&quot;, &quot;domestic assistance, attendant care, parenting support, self-management, dependency, biopsychosocial, function/return to work&quot;, _
+        &quot;The Panel considers that as Ms Huynh’s youngest child is now a toddler and more physically independent, replacing her role in parenting and domestic tasks is not the most effective strategy to help her to self-manage her condition and maximise her participation in home, community or work activities. The Clinical Framework of the Delivery of Health Services indicates that independence does not mean symptom-free, but rather living a functional, &quot; &amp; _
+        &quot;productive life while self-managing symptoms.The Panel further considers that the Clinical Framework for the Delivery of Health Services indicates self-management as the best way forward. The Framework highlights that failure to empower an injured person to become independent may result in dependency on treatment, which reinforces illness behaviour and can lead to persistent pain and long-term disability.Therefore, the ongoing provision of &quot; &amp; _
+        &quot;commercial care to replace Ms Huynh’s parenting and domestic roles is not an effective long-term solution.The Panel found no evidence in the Initial Needs report dated 16 November 2022 or Rehabilitation Progress Report No.2 dated 31 March 2023 from OT Rehab Consulting that Ms Huynh had ever received occupational therapy intervention to increase her capacity and build self-management strategies, nor had she been prescribed equipment for energy &quot; &amp; &quot;conservation during domestic or parenting tasks. [...]&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Domestic Assistance / Attendant Care&quot;, &quot;Faridy v Allianz&quot;, &quot;[2023] NSWPICMP 670 (12 December 2023)&quot;, &quot;R&amp;N&quot;, &quot;4&quot;, &quot;Three hours&#x27; fortnightly commercial domestic assistance found R&amp;N, limited to heavier/repetitive cleaning and tasks above shoulder height - lighter day-to-day tasks (cooking, laundry) remained within the claimant&#x27;s capacity.&quot;, &quot;domestic assistance, attendant care, heavy cleaning, quantum of hours, function/return to work, apportionment, shoulder&quot;, _
+        &quot;Whilst the Panel concedes these assessments occurred some time ago there is no evidence of any significant change in the claimant’s condition and the Panel is satisfied the finding that fortnightly domestic assistance of three hours a fortnight is reasonable and necessary in the circumstances is consistent with the available medical opinion. The Panel is satisfied that whilst Ms Faridy would be capable of performing many day-to-day domestic &quot; &amp; _
+        &quot;tasks, such as cooking, laundry and light cleaning, more strenuous activities and those above shoulder height are likely to aggravate her right shoulder pain and possibly her neck. The panel therefore supports the past and ongoing provision of three hours of fortnightly commercial assistance for cleaning, from 18 July 2020 to 20 December 2021 and from 21 December 2021 into the future. The primary focus of that service should be on heavier and/or &quot; &amp; &quot;repetitive cleaning tasks and those above shoulder height, including thorough vacuuming/mopping, cleaning of full-length glass and deep cleaning of the bathrooms and kitchen. That would ensure the client&#x27;s living environment remains safe and hygienic without exacerbating her &quot; &amp; &quot;pain.&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Domestic Assistance / Attendant Care&quot;, &quot;GIO v Bruce&quot;, &quot;[2023] NSWPICMP 368 (2 August 2023)&quot;, &quot;R&amp;N (limited)&quot;, &quot;&quot;, &quot;Domestic assistance found R&amp;N but only for heavier tasks (2 hrs/week for 2 years) - lighter tasks (cooking, dishes, light cleaning) remained within capacity, and needs attributable to non-accident causes (mental health, incontinence) were excluded.&quot;, &quot;domestic assistance, attendant care, quantum of hours, apportionment, causation&quot;, _
+        &quot;Whether the domestic assistance provided or to be provided to the claimant was or is reasonable and necessary in the circumstances The Panel is required to consider whether domestic assistance provided or to be provided to the claimant from 8 December 2022 and ongoing is reasonable and necessary in the circumstances. The Panel notes the claimant lives in a four bedroom two bathroom single storey house on 12 acres of land with her husband and &quot; &amp; _
+        &quot;four children including a 30-year-old son who suffers with autism and a 14-year-old son with special needs and autism. The Panel does not accept the opinion of Deborah Hammond occupational therapist who concluded the claimant only required assistance with domestic activities for a three month period. At the time of the assessment Ms Hammond relied upon the opinion of Medical Assessor Harrington to conclude reliance on a Canadian crutch was not &quot; &amp; &quot;consistent with the soft tissue injury sustained. She concluded there was no evidence of a continuing physical injury which would be harmed by performing domestic duties. Whilst the Panel accepts the opinion of Medical Assessor Harrington as to the need for reliance on the Canadian crutch the Panel finds the soft tissue injury was continuing resulting in a degree of functional impairment. &quot; &amp; &quot;[...]&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Domestic Assistance / Attendant Care&quot;, &quot;NRMA v Huynh (household roles)&quot;, &quot;[2024] NSWPICMP 677 (24 September 2024)&quot;, &quot;R&amp;N (limited)&quot;, &quot;4&quot;, &quot;Same case as above - 4 hours/week for 3 months of domestic assistance (heavy cleaning/laundry) plus 4 hours/week parenting support (nanny) found R&amp;N, framed as bridging support while self-management strategies were built, not a long-term replacement.&quot;, &quot;domestic assistance, attendant care, parenting support, heavy cleaning, self-management, quantum of hours, staged reduction&quot;, _
+        &quot;The Panel considers that as Ms Huynh’s youngest child is now a toddler and more physically independent, replacing her role in parenting and domestic tasks is not the most effective strategy to help her to self-manage her condition and maximise her participation in home, community or work activities. The Clinical Framework of the Delivery of Health Services indicates that independence does not mean symptom-free, but rather living a functional, &quot; &amp; _
+        &quot;productive life while self-managing symptoms.The Panel further considers that the Clinical Framework for the Delivery of Health Services indicates self-management as the best way forward. The Framework highlights that failure to empower an injured person to become independent may result in dependency on treatment, which reinforces illness behaviour and can lead to persistent pain and long-term disability.Therefore, the ongoing provision of &quot; &amp; _
+        &quot;commercial care to replace Ms Huynh’s parenting and domestic roles is not an effective long-term solution.The Panel found no evidence in the Initial Needs report dated 16 November 2022 or Rehabilitation Progress Report No.2 dated 31 March 2023 from OT Rehab Consulting that Ms Huynh had ever received occupational therapy intervention to increase her capacity and build self-management strategies, nor had she been prescribed equipment for energy &quot; &amp; &quot;conservation during domestic or parenting tasks. [...]&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Domestic Assistance / Attendant Care&quot;, &quot;Lam v QBE&quot;, &quot;[2026] NSWPICMP 231 (31 March 2026)&quot;, &quot;Not R&amp;N&quot;, &quot;&quot;, &quot;Lawn maintenance and meal preparation assistance found not R&amp;N - the claimant was not responsible for yard work pre-accident and reported independence with meal preparation, so the assistance did not relate to a genuine loss of function.&quot;, &quot;domestic assistance, attendant care, lawn maintenance, meal preparation, causation, function/return to work, pre-existing condition, cervical spine, lumbar spine, shoulder&quot;, _
+        &quot;Domestic assistance including lawn maintenance and meal preparation station in relation to the shoulder injury The Panel, having found, the claimant has sustained injury to the cervical spine, lumbar spine and shoulders caused by the accident, it is accepted that the domestic assistance is related to the injuries caused by the motor accident. However, the Panel notes that the evidence suggests that the claimant was not responsible for yard &quot; &amp; &quot;maintenance prior to the motor vehicle accident. Further, the claimant reported to Medical Assessor Maloney that she was independent with meal preparation. The Panel therefore finds that the domestic assistance is not reasonable and necessary in the &quot; &amp; &quot;circumstances.&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Domestic Assistance / Attendant Care&quot;, &quot;Ahmad v NRMA&quot;, &quot;[2025] NSWPICMP 221 (31 March 2025)&quot;, &quot;R&amp;N (limited)&quot;, &quot;&quot;, &quot;Domestic assistance capped at 2 hours per month for heavier cleaning tasks only - claimant&#x27;s soft tissue injuries were not severe enough to justify more, and she had returned to work.&quot;, &quot;domestic assistance, attendant care, heavy cleaning, quantum of hours, function/return to work, lumbar spine, hip, abdomen, shoulder&quot;, &quot;Lumbar spine - soft tissue injury Right hip - soft tissue injury Abdomen - hernia repairs Right shoulder - soft tissue injury The physical injuries sustained by Ms Ahmad are not of sufficient severity to justify the provision of domestic assistance . She is back at work. She does have difficulty vacuuming and cleaning the house she reports. Any assistance would only be for heavier aspects of cleaning at the most for 2- hours per month.&quot;, _
+        &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2025/221.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Domestic Assistance / Attendant Care&quot;, &quot;Avila v NRMA&quot;, &quot;[2026] NSWPICMP 425 (17 June 2026)&quot;, &quot;Not R&amp;N&quot;, &quot;&quot;, &quot;Domestic assistance found not R&amp;N where the claimant did not have a diagnosed clinical psychiatric disorder underpinning the claimed need.&quot;, &quot;domestic assistance, attendant care, causation, psychological injury&quot;, &quot;Because he did not have a clinical psychiatric disorder, there was no need for domestic assistance .&quot;, &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2026/425.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Domestic Assistance / Attendant Care&quot;, &quot;Villanueva v Lifetime Care&quot;, &quot;[2025] NSWPICMP 855 (5 November 2025)&quot;, &quot;Evidentiary&quot;, &quot;&quot;, &quot;Self-reported care diaries used to argue for more hours than assessed were treated cautiously - the Panel flagged issues like activities that overlap with tasks the carer would do anyway, and time allocations exceeding reasonable efficiency.&quot;, &quot;domestic assistance, attendant care, evidentiary, particularisation, spinal cord injury, spine&quot;, _
+        &quot;1. Ms Villanueva&#x27;s submission included diaries documenting her sister providing approximately 23 hours weekly of domestic care, which is presented as evidence that eight hours weekly is inadequate. The Panel notes several issues arise with relying on self-reported diaries: (a) concurrent activities - many activities recorded occur simultaneously with tasks Concepcion would perform regardless of Ms Villanueva&#x27;s presence including preparing &quot; &amp; _
+        &quot;household meals, cleaning common areas, and shopping for groceries; (b) reasonable efficiency - diary entries suggest time allocations exceeding reasonable expectations, with meal preparation time substantially exceeding Ms Villanueva&#x27;s own pre-accident time and shopping time exceeding reasonable duration given proximity to shops, and (c) distinction between care provided and care required - family members may choose to provide assistance beyond &quot; &amp; &quot;what is objectively necessary due to affection or desire for comfort, but the test is what objectively needs to be provided, not what is actually being provided. 2. Concepcion has ceased working as a registered nurse and is available at home full-time. She may naturally provide companionship, prepare elaborate meals, maintain the home to exceptionally high standards, and anticipate needs before assistance must be requested. &quot; &amp; _
+        &quot;[...]&quot;, &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2025/855.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Domestic Assistance / Attendant Care&quot;, &quot;Schembri v NRMA&quot;, &quot;[2023] NSWPICMP 200 (9 May 2023)&quot;, &quot;Not R&amp;N (part) / Evidentiary&quot;, &quot;&quot;, &quot;Assistance for hanging laundry found not R&amp;N given near-full shoulder range of movement on examination. Also: the Panel expects the claimant to particularise which specific activities and hours are needed (with corroborating evidence from household members), not a general assertion of need.&quot;, &quot;domestic assistance, attendant care, laundry, particularisation, function/return to work, evidence standard, shoulder&quot;, _
+        &quot;The claimant demonstrated, on examination by Medical Assessor Moloney, a full range of movement of her left shoulder. Her range of movement on the right shoulder was only partially limited. While the claimant says that she can put the clothes washing in the washing machine, she says that she cannot hang out the washing. The Panel does not see any impediment to the claimant hanging out the washing, given her near full range of movement of both &quot; &amp; &quot;shoulders.&quot;, &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2023/200.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Domestic Assistance / Attendant Care&quot;, &quot;Qian v Youi&quot;, &quot;[2026] NSWPICMP 464&quot;, &quot;Not R&amp;N&quot;, &quot;&quot;, &quot;A marginal increase of 1 additional hour per week (on top of 12 existing hours) found not R&amp;N - related to the injury, but the Panel could not see the practical utility of such a small increment.&quot;, &quot;domestic assistance, attendant care, cleaning, quantum of hours, cost-effectiveness&quot;, &quot;https://jade.io/article/1236833 The Panel finds that proposed domestic cleaning for one additional hour per week is related to the injury caused by the accident. However, the Panel cannot see the utility of proposed domestic cleaning limited to one additional hour per week over 12 hours and finds that it is not reasonable and necessary in the circumstances.&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Domestic Assistance / Attendant Care&quot;, &quot;Dahchan v Allianz&quot;, &quot;[2023] NSWPICMP 555 (6 November 2023)&quot;, &quot;R&amp;N (limited)&quot;, &quot;&quot;, &quot;2 hours/week of domestic assistance for heavier upper-body tasks (hanging washing, scrubbing, mopping) found R&amp;N for a 6-week period following minor soft tissue injuries to neck/shoulder - nothing further after that.&quot;, &quot;domestic assistance, attendant care, heavy cleaning, quantum of hours, staged reduction, apportionment, neck, shoulder&quot;, _
+        &quot;Nonetheless, and despite these inconsistencies and the minor nature of the soft tissue injuries to the claimant’s neck and right shoulder caused by the accident, it is the Panel’s opinion that she is likely to have suffered an incapacity to perform heavier domestic tasks which impact on the upper body, including hanging out washing, scrubbing and mopping, for a period of six weeks from the date of the accident on 3 May 2016, and the Panel finds &quot; &amp; &quot;that during this period 2 hours per week of domestic assistance is reasonable and necessary in the circumstances and relates to the injuries caused by the motor accident. In the opinion of the Panel, any domestic assistance in addition to this during the period of six months from the date of the accident on 3 May 2016 was not reasonable and necessary in the circumstances and does not relate to the injuries caused by the motor &quot; &amp; _
+        &quot;accident.&quot;, &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2023/555.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Domestic Assistance / Attendant Care&quot;, &quot;Isaac v GIO&quot;, &quot;[2023] NSWPICMP 676 (15 December 2023)&quot;, &quot;R&amp;N (limited)&quot;, &quot;&quot;, &quot;2 hours/week found R&amp;N for neck-related domestic assistance, discounted because the claimant lived with three other adults and had a 10-year pre-accident history of neck pain - assistance was apportioned to genuine accident-related incapacity only.&quot;, &quot;domestic assistance, attendant care, apportionment, pre-existing condition, quantum of hours, neck&quot;, _
+        &quot;December 2023) Treatment Description: Whether 0-7 hours per week of domestic assistance in relation to the physical injuries from the date of the subject motor vehicle accident to the date of the Medical Assessors assessment is reasonable and necessary in relation to the injury sustained in the subject accident. -YES, regarding the neck only but limited to 2 hours per week. The claimant has suffered from neck pain with the severity of 5 to 7/10 &quot; &amp; &quot;every day for the previous 10 years before the accident. Examination the claimant had normal range of motion of her cervical spine for a person of her age. The claimant lives in a home with three other adults. The actual need for domestic assistance specifically referable to the claimant and not those of the other three occupants in the household is estimated by the Panel not to exceed two hours per &quot; &amp; &quot;week.&quot;, _
+        &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2023/676.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Domestic Assistance / Attendant Care&quot;, &quot;Ahmed v NRMA (No 1 and 2)&quot;, &quot;[2023] NSWPICMP 586 (13 November 2023)&quot;, &quot;R&amp;N (staged)&quot;, &quot;&quot;, &quot;Detailed task-by-task hourly benchmark for the first 2 weeks post-accident (meal prep, laundry, heavy shopping, cleaning = 8.5 hrs/week total for soft tissue injuries), stepping down over the following 12 weeks as recovery progressed. Useful worked example for building a domestic assistance schedule.&quot;, &quot;domestic assistance, attendant care, meal preparation, laundry, shopping, benchmark, staged reduction, quantum of hours&quot;, _
+        &quot;Therefore, for the first two weeks of her recovery, it is the clinical judgment of the Medical Assessors that the claimant’s reasonable and necessary domestic assistance was: (a) meal preparation and cleaning up afterward - 0.5 hours per day or 3.5 hours per week; (b) stripping and remaking her bed, laundering heavy items, hanging them and bringing them in - 1.0 hour per week; (c) heavy shopping - 1.0 hr per week, and (d) vacuuming, mopping, &quot; &amp; &quot;dusting those rooms used by the claimant, wiping over surfaces in the kitchen and cleaning the claimant’s bathroom - 3.0 hours per week. (e) Total: 8.5 hours per week. Over the next 12 weeks, it is the clinical judgment of the Medical Assessors that the claimant’s soft-tissue injuries would have continued to progress toward recovery and she would have been capable of gradually taking on more duties around her home. &quot; &amp; &quot;[...]&quot;, _
+        &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2023/586.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Domestic Assistance / Attendant Care&quot;, &quot;Houchar v GIO&quot;, &quot;[2023] NSWPICMP 176 (2 May 2023)&quot;, &quot;Not R&amp;N&quot;, &quot;3&quot;, &quot;Home assistance items/aids found not R&amp;N where an OT noted the claimant had physical capacity but was not engaging in activity due to his psychological condition - the issue was motivation, not capacity.&quot;, &quot;domestic assistance, attendant care, assistive equipment, capacity vs motivation, psychological injury&quot;, &quot;May 2023) However, Catherine Corkhill (Occupational Therapist) noted on 2 October 2020, his psychological condition resulted in non-engagement in physical activities and activity of daily living even though he had physical capacity. I agree with this assessment. Therefore, the items requested to assist at home are not necessary as he has capacity – he is just not motivated to do tasks.&quot;, _
+        &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2023/176.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Domestic Assistance / Attendant Care&quot;, &quot;QBE v Suttie&quot;, &quot;[2024] NSWPICMP 245 (22 April 2024)&quot;, &quot;R&amp;N (benchmarked)&quot;, &quot;&quot;, &quot;No fixed regulatory cap on domestic assistance for non-threshold injuries. Panel benchmarked against the iCare &#x27;Guidance on the provision of support workers for adults with spinal cord injuries&#x27; (2 hrs/week for home and garden maintenance for a complete spinal injury) then adjusted upward for the claimant&#x27;s larger rural property, but excluded broader farming/property maintenance beyond the home and immediate surrounds.&quot;, &quot;domestic assistance, attendant care, gardening, lawn maintenance, benchmark, quantum of hours, apportionment, spinal cord injury, spine&quot;, _
+        &quot;There is nothing in the guidelines about limits for domestic assistance for claimants with non- threshold injuries. In providing a reasonable estimate for the time needed to replace Ms Suttie’s pre- accident role in home and property maintenance , between the date of her accident and 17 November 2022, The Panel refers to the document Guidance on the provision of support workers for adults with spinal cord injuries (ICARE 2017). That document &quot; &amp; _
+        &quot;estimates the amount of assistance with home and garden maintenance for someone with a complete spinal injury, who can’t contribute at all to home maintenance , as 2 hours per week. That is for someone who lives in a house to maintain their home and garden. The Panel considers that it is reasonable that someone living on a large rural property, such as Ms Suttie, would have a greater need. But that would only be to maintain her home and the &quot; &amp; &quot;block / fencing directly surrounding it. Maintaining the property beyond that is not considered reasonable domestic assistance. Nor is maintaining the home and property for farming services.&quot;, &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2024/245.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Domestic Assistance / Attendant Care&quot;, &quot;Allianz v Smoothy&quot;, &quot;[2023] NSWPICMP 378 (4 August 2023)&quot;, &quot;R&amp;N&quot;, &quot;2,5&quot;, &quot;12 weeks of extra domestic assistance found R&amp;N to allow recovery from soft tissue injuries, supported by chronic pain research that inactivity/avoidance of movement worsens depression, muscle atrophy, disability and pain - i.e. assistance was framed to support recovery, not entrench inactivity.&quot;, &quot;domestic assistance, attendant care, biopsychosocial, research evidence, function/return to work, chronic pain&quot;, _
+        &quot;Based on the above diagnoses and determinations, Ms Smoothy reasonably needed more domestic assistance for about 12 weeks to allow for recovery of her soft tissue injuries [24],[25]&amp;[26]. [25] “Chronic pain guidelines espouse focusing on maintaining participation in functional activities despite the pain because inactivity or avoidance of movement leads to increased symptoms of depression, muscle atrophy, disability and increased pain” &quot; &amp; &quot;(https://www.tac.vic.gov.au/ __data/assets/pdf_file/0003/125409/Chronic-Pain-Evidence-Review.pdf “Psychosocial Interventions for Chronic Pain: A Snapshot Review” by the Australian Centre for Posttraumatic Mental Health for the Institute for Safety, Compensation, and Recovery Research . Dr D Mitchell and AP M O’Donnell. 6 July 2011). Insurance Australia Limited t/as NRMA Insurance &amp; Anor &quot; &amp; &quot;v&quot;, _
+        &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2023/378.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Travel &amp; Transport Costs&quot;, &quot;Chen v QBE&quot;, &quot;[2022] NSWPICMR 55 (23 September 2022)&quot;, &quot;Not R&amp;N&quot;, &quot;&quot;, &quot;Travel expense to a GP ~25km away found not R&amp;N/not payable where there were many closer local GP options available - reasonableness of travel is assessed against the availability of an equivalent, closer provider.&quot;, &quot;travel, transport reimbursement, closer provider, cost-effectiveness&quot;, &quot;• Alternatively, if the claimant travelled to these appointments from home and return rather than from work, then I consider the whole of the expense to be unreasonable and unnecessary. As noted above, I do not consider it reasonable or necessary for the claimant to attend a GP in St Ives, almost 25 km from her home, in circumstances where she has seen other GPs closer to home. Regardless of whether the claimant has seen other GPs more &quot; &amp; _
+        &quot;reasonably located, there can be no doubt there are many GPs located locally to the claimant’s home, including within walking distance given her inner city home location. As such, it is not reasonable or necessary for the claimant to travel almost 25 km each way to see a GP when she could have easily (and reasonably) attended a local GP. • As I do not consider it reasonable or necessary to attend a GP in St Ives from Haymarket in the &quot; &amp; &quot;circumstances, any expense to attend from home is not payable under s 3.24 as the requirement that the expense be reasonable and necessary is not met.&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Travel &amp; Transport Costs&quot;, &quot;Bonsu v NRMA&quot;, &quot;[2026] NSWPICMR 6 (27 February 2026)&quot;, &quot;Not R&amp;N&quot;, &quot;&quot;, &quot;Private chauffeur/taxi transport for the claimant&#x27;s children to school found not R&amp;N where public transport was reasonably available and there was no medical evidence the claimant could not manage it.&quot;, &quot;travel, transport reimbursement, function/return to work, capacity vs motivation, public transport&quot;, &quot;• There is no medical evidence to suggest that Ms Bonsu could not walk her children to and from a public bus stop (11 minutes away) or the bus stop used by the school’s own bus services. • While the claimant has given evidence of at least one time when her children got off at the wrong bus stop, there is insufficient evidence to suggest the claimant has difficulty riding on public transport and that she could not, as the Department of Education &quot; &amp; _
+        &quot;suggests, plan the route to school with her children, travel the route to school with her children to help familiarise them with the route, show them where to get off and so on. • It follows therefore that I do not consider it reasonable for the insurer to pay the cost of private or chauffer transport to and from school as claimed by Ms &quot; &amp; &quot;Bonsu.&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Travel &amp; Transport Costs&quot;, &quot;Diakanastasis v NRMA&quot;, &quot;[2025] NSWPICMR 8 (17 March 2025)&quot;, &quot;Not R&amp;N&quot;, &quot;&quot;, &quot;Reimbursement for the full distance travelled from work to a treatment provider (rather than the incremental distance beyond the normal commute home) found not payable - no genuine additional loss where the claimant would have made the journey home regardless.&quot;, &quot;travel, transport reimbursement, apportionment&quot;, &quot;The primary contention made by the claimant is that he should be reimbursed for the total distance travelled from work to the treatment provider, regardless of whether this formed part of his commute home from work. For the reasons outlined above and consistent with the Chen decision, I do not consider such travel expenses to be reasonable. As the claimant would have made the journey home from work in any event, he has not suffered a loss in &quot; &amp; _
+        &quot;this regard. As the answer to Question Two in paragraph 21 above is “no” in so far as the kilometres would have been travelled in any event, the cost of those kilometres is not payable by the insurer.&quot;, &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMR/2025/8.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Rehabilitation Aids / Equipment&quot;, &quot;Houchar v GIO&quot;, &quot;[2023] NSWPICMP 176 (2 May 2023)&quot;, &quot;Not R&amp;N&quot;, &quot;3&quot;, &quot;Home aids/equipment found not R&amp;N where the claimant had physical capacity but was not engaging in daily activities due to his psychological condition rather than any physical limitation.&quot;, &quot;assistive equipment, rehabilitation aids, capacity vs motivation, psychological injury&quot;, &quot;May 2023) However, Catherine Corkhill (Occupational Therapist) noted on 2 October 2020, his psychological condition resulted in non-engagement in physical activities and activity of daily living even though he had physical capacity. I agree with this assessment. Therefore, the items requested to assist at home are not necessary as he has capacity – he is just not motivated to do tasks.&quot;, &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2023/176.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Case Conferencing / Report Writing (Scope Note)&quot;, &quot;ANM v NRMA (Merit Review)&quot;, &quot;[2020] NSWSIRADRS 150 (27 July 2020)&quot;, &quot;Out of scope&quot;, &quot;&quot;, &quot;Communication about a claimant&#x27;s case, report writing about treatment given, or participating in case conferences are case management activities - they are not &quot;&quot;treatment or care&quot;&quot; expenses payable under the Act/Regulation.&quot;, &quot;case management, scope of treatment&quot;, &quot;• Communication by the treating physiotherapist about the claimant’s case, writing a report about the treatment given to the claimant or participating in a case conference about the claimant’s treatment, (for example, with the insurer and collaborative treatment providers) cannot, in my view, be regarded as treatment or care expenses within the meaning of subsections 1.4 (1) (a) to (k) of the Act. • In my view, the disputed treatment and care &quot; &amp; _
+        &quot;expenses are essentially case management services associated with the claimant’s treatment and care. There is no provision in the Act or the Regulation which allows for the provision or cost of those services. Subsection 1.4 (1) (l) of the Act makes provision for the Regulation to prescribe such other kinds of “support or services” for the purposes of the section 1.4(1) definition. To date, no other kinds of support or services have been &quot; &amp; &quot;prescribed by the Regulation.&quot;, &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWSIRADRS/2020/150.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Physiotherapy&quot;, &quot;Avila v NRMA&quot;, &quot;[2026] NSWPICMP 345 (19 May 2026)&quot;, &quot;Not R&amp;N&quot;, &quot;4&quot;, &quot;A further rehabilitation assessment found not R&amp;N where more than 18 months had passed since the accident and the claimant had already completed multiple months of physio, EP and ADL assessments.&quot;, &quot;physiotherapy, exercise physiology, active treatment, rehabilitation assessment, treatment duration, indefinite treatment&quot;, &quot;However, now over 18 months since the subject accident. Ms Avila has already had multiple months of physiotherapy treatment and Exercise Physiology and ADL assessments. It was the Panel’s opinion that an additional further rehabilitation assessment was not necessary or reasonable in the circumstances.&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Domestic Assistance / Attendant Care&quot;, &quot;Badal v AAMI&quot;, &quot;[2024] NSWPICMP 208 (5 April 2024)&quot;, &quot;R&amp;N (limited, time-boxed)&quot;, &quot;&quot;, &quot;Domestic assistance for heavy household tasks found R&amp;N for up to 3 months post-accident for soft tissue injuries (neck, lower back, left hip). Once symptoms had reduced enough that the claimant could resume her own chores (with pacing), no further assistance was R&amp;N.&quot;, &quot;domestic assistance, attendant care, heavy cleaning, staged reduction, treatment duration, function/return to work, neck, lumbar spine, hip&quot;, _
+        &quot;Past and future domestic assistance (0-17.5 hours per week) The Panel is satisfied on the balance of probabilities that the claimant would have required domestic assistance with heavy household tasks for up to three months after the accident as a result of her soft tissue injuries. Thereafter, the symptoms had reduced to a level whereby Ms Badal was capable of resuming her chores albeit with pacing. She had soft tissue injuries only, previous &quot; &amp; &quot;symptoms in her neck, lower back and left hip and no further assistance would be reasonable and necessary in the circumstances.&quot;, &quot;https://classic.austlii.edu.au/cgi-bin/sinodisp/au/cases/nsw/NSWPICMP/2024/208.html&quot;, &quot;&quot;, &quot;&quot;
+    AddRow ws, r, &quot;Diagnostic Imaging (MRI/CT/X-ray)&quot;, &quot;Badal v AAMI&quot;, &quot;[2024] NSWPICMP 208 (5 April 2024)&quot;, &quot;Not R&amp;N&quot;, &quot;1&quot;, &quot;Further radiological investigations found not R&amp;N more than 5 years post-accident. The claimant had already undergone extensive imaging without apparent benefit, and further imaging was considered more likely harmful (unnecessary radiation exposure) while reinforcing unhelpful beliefs about the severity of disability.&quot;, &quot;diagnostic imaging, radiology, degenerative changes, no benefit, harm/risk, neck, lumbar spine, hip&quot;, _
+        &quot;Further radiological investigations are not reasonable and necessary in the circumstances. Any radiological changes that may occur in the future, more than five years after the accident, such as worsening degenerative change) are not related to the accident but the underlying condition. The claimant has already undergone extensive imaging investigations before and since the motor accident, without apparent benefit. Further radiological &quot; &amp; &quot;investigations are, in the clinical view of the Medical Assessors more likely harmful given unnecessary exposure to radiation whilst also serving to reinforce the claimant’s unhelpful beliefs regarding the severity of physical disability and associated voluntary activity limitations. Radiological investigations every three years are therefore not reasonable and necessary in the &quot; &amp; &quot;circumstances.&quot;, _
+        &quot;https://www.austlii.edu.au/cgi-bin/viewdoc/au/cases/nsw/NSWPICMP/2024/208.html&quot;, &quot;&quot;, &quot;&quot;
+
+End Sub
+
+Private Sub AddRow(ws As Worksheet, ByRef r As Long, cat As String, caseName As String, citation As String, outcome As String, principle As String, summary As String, keywords As String, extract As String, url As String, Optional flag As String = &quot;&quot;, Optional favorite As String = &quot;&quot;)
+    ws.Cells(r, 1).Value = cat
+    ws.Cells(r, 2).Value = caseName
+    ws.Cells(r, 3).Value = citation
+    ws.Cells(r, 4).Value = outcome
+    ws.Cells(r, 5).Value = principle
+    ws.Cells(r, 6).Value = summary
+    ws.Cells(r, 7).Value = keywords
+    ws.Cells(r, 8).Value = extract
+    ws.Cells(r, 9).Value = url
+    ws.Cells(r, 10).Value = flag
+    ws.Cells(r, 11).Value = favorite
+    r = r + 1
+End Sub
+
+&#x27; shows the normally-hidden data sheets so you can hand-edit them - PIC Library is the one
+&#x27; youll want (fix a citation, tweak an extract, add a whole new row on a blank line below the
+&#x27; last one). No password on this, unlike the MonitoringReport hidden sheets - nothing here is
+&#x27; claims data, just static legal reference material.
+Public Sub UnhidePICSheets()
+    ThisWorkbook.Worksheets(LIB_SHEET).Visible = xlSheetVisible
+    ThisWorkbook.Worksheets(CAT_SHEET).Visible = xlSheetVisible
+    ThisWorkbook.Worksheets(PRIN_SHEET).Visible = xlSheetVisible
+    MsgBox &quot;&#x27;&quot; &amp; LIB_SHEET &amp; &quot;&#x27;, &#x27;&quot; &amp; CAT_SHEET &amp; &quot;&#x27; and &#x27;&quot; &amp; PRIN_SHEET &amp; &quot;&#x27; are visible now. &quot; &amp; _
+        &quot;Edit away, then run HidePICSheetsAgain when you&#x27;re done - and run RunSetupHere afterwards &quot; &amp; _
+        &quot;if you changed any Category values, so the dropdown picks up the change.&quot;, vbInformation
+End Sub
+
+Public Sub HidePICSheetsAgain()
+    ThisWorkbook.Worksheets(LIB_SHEET).Visible = xlSheetVeryHidden
+    ThisWorkbook.Worksheets(CAT_SHEET).Visible = xlSheetVeryHidden
+    ThisWorkbook.Worksheets(PRIN_SHEET).Visible = xlSheetVeryHidden
+End Sub
+
+&#x27; unique category list, in order of first appearance in the library, used as the dropdown source
+Public Sub SetupCategoriesSheet()
+    Dim libWs As Worksheet, catWs As Worksheet
+    Set libWs = ThisWorkbook.Worksheets(LIB_SHEET)
+    Set catWs = GetOrCreateSheet(CAT_SHEET)
+    catWs.Visible = xlSheetVeryHidden
+
+    Dim lastRow As Long
+    lastRow = libWs.Cells(libWs.Rows.Count, 1).End(xlUp).Row
+
+    Dim seen As Object
+    Set seen = CreateObject(&quot;Scripting.Dictionary&quot;)
+
+    Dim outRow As Long
+    outRow = 1
+
+    Dim r As Long
+    For r = 2 To lastRow
+        Dim c As String
+        c = libWs.Cells(r, 1).Value
+        If Not seen.Exists(c) Then
+            seen.Add c, True
+            catWs.Cells(outRow, 1).Value = c
+            outRow = outRow + 1
+        End If
+    Next r
+End Sub
+
+&#x27; takes the sheet to build on as a parameter instead of looking one up by name -
+&#x27; this is the fix for the dropdown not firing: it must build on the exact same sheet
+&#x27; object that the Worksheet_Change code is pasted into, not a new sheet created by name
+Public Sub SetupLookupSheet(ws As Worksheet)
+    ws.Cells.Clear
+    ws.Visible = xlSheetVisible
+    On Error Resume Next
+    ws.Name = LOOKUP_SHEET
+    On Error GoTo 0
+
+    ws.Range(&quot;A1&quot;).Value = LOOKUP_SHEET
+    ws.Range(&quot;A1&quot;).Font.Bold = True
+    ws.Range(&quot;A1&quot;).Font.Size = 14
+
+    ws.Range(&quot;A3&quot;).Value = &quot;TRAC Type:&quot;
+    ws.Range(&quot;A3&quot;).Font.Bold = True
+
+    ws.Range(&quot;A4&quot;).Value = &quot;Keywords:&quot;
+    ws.Range(&quot;A4&quot;).Font.Bold = True
+
+    &#x27; dropdown lives in DROPDOWN_CELL (B3) - left blank by default, which means &quot;show everything&quot;.
+    &#x27; free-text search box lives in SEARCH_CELL (B4) - when a TRAC Type is also selected, the
+    &#x27; keyword search only looks within that type; when TRAC Type is blank, it searches everything
+    Dim catWs As Worksheet
+    Set catWs = ThisWorkbook.Worksheets(CAT_SHEET)
+    Dim lastCat As Long
+    lastCat = catWs.Cells(catWs.Rows.Count, 1).End(xlUp).Row
+
+    With ws.Range(DROPDOWN_CELL).Validation
+        .Delete
+        .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Formula1:=&quot;=&#x27;&quot; &amp; CAT_SHEET &amp; &quot;&#x27;!A1:A&quot; &amp; lastCat
+    End With
+    ws.Range(DROPDOWN_CELL).Interior.Color = RGB(255, 255, 204)
+
+    ws.Range(SEARCH_CELL).Interior.Color = RGB(220, 235, 255)
+
+    &#x27; results table headers, row 6. Column I is the favourites star (double-click a result row
+    &#x27; to toggle); column J is a hidden helper holding which PIC Library row that result came
+    &#x27; from, so the double-click handler knows what to toggle - not meant to be read by hand
+    ws.Range(&quot;A6:I6&quot;).Value = Array(&quot;Category&quot;, &quot;Case&quot;, &quot;Outcome&quot;, &quot;Clinical Framework Principle(s)&quot;, &quot;Summary&quot;, &quot;Keywords&quot;, &quot;Extract&quot;, &quot;Source&quot;, StarChar())
+    ws.Range(&quot;A6:I6&quot;).Font.Bold = True
+    ws.Range(&quot;A6:I6&quot;).Interior.Color = RGB(217, 217, 217)
+    ws.Cells(6, 9).Font.Color = RGB(184, 134, 11)
+
+    ws.Columns(&quot;A&quot;).ColumnWidth = 24
+    ws.Columns(&quot;B&quot;).ColumnWidth = 32
+    ws.Columns(&quot;C&quot;).ColumnWidth = 13
+    ws.Columns(&quot;D&quot;).ColumnWidth = 26
+    ws.Columns(&quot;E&quot;).ColumnWidth = 38
+    ws.Columns(&quot;F&quot;).ColumnWidth = 22
+    ws.Columns(&quot;G&quot;).ColumnWidth = 38
+    ws.Columns(&quot;H&quot;).ColumnWidth = 10
+    ws.Columns(&quot;I&quot;).ColumnWidth = 6
+    ws.Columns(&quot;J&quot;).Hidden = True
+End Sub
+
+&#x27; rebuilds the results table. scope = the selected TRAC Type (or everything, if left blank);
+&#x27; within that scope, a keyword further narrows it if the search box has anything in it.
+&#x27; favourited cases always sort first within whatever&#x27;s showing; when TRAC Type is blank, the
+&#x27; rest sort alphabetically by category. takes the sheet as a parameter for the same reason as
+&#x27; SetupLookupSheet above - called from Worksheet_Change (passing Me) on the PIC Lookup sheet,
+&#x27; from the double-click favourite handler, or from RunSetupHere
+Public Sub RefreshResults(ws As Worksheet)
+    Dim libWs As Worksheet
+    Set libWs = ThisWorkbook.Worksheets(LIB_SHEET)
+
+    Dim searchTerm As String
+    searchTerm = Trim(ws.Range(SEARCH_CELL).Value)
+
+    Dim selectedCat As String
+    selectedCat = Trim(ws.Range(DROPDOWN_CELL).Value)
+
+    &#x27; clear old results first, formatting included, down to a generous row count
+    Dim clearRange As Range
+    Set clearRange = ws.Range(&quot;A7:J300&quot;)
+    clearRange.ClearContents
+    clearRange.Interior.ColorIndex = xlColorIndexNone
+    clearRange.WrapText = False
+    On Error Resume Next
+    clearRange.Hyperlinks.Delete
+    On Error GoTo 0
+
+    Dim lastRow As Long
+    lastRow = libWs.Cells(libWs.Rows.Count, 1).End(xlUp).Row
+
+    &#x27; pass 1: find every matching library row and build a sort key for it -
+    &#x27; favourites first (&quot;0&quot; sorts before &quot;1&quot;), then category alphabetically, then original order
+    Dim matchRows() As Long
+    Dim sortKeys() As String
+    ReDim matchRows(1 To lastRow)
+    ReDim sortKeys(1 To lastRow)
+    Dim matchCount As Long
+    matchCount = 0
+
+    Dim r As Long
+    For r = 2 To lastRow
+        Dim inScope As Boolean
+        If selectedCat = &quot;&quot; Then
+            inScope = True
+        Else
+            inScope = (libWs.Cells(r, 1).Value = selectedCat)
+        End If
+
+        Dim keywordOk As Boolean
+        If searchTerm = &quot;&quot; Then
+            keywordOk = True
+        Else
+            keywordOk = (InStr(1, libWs.Cells(r, 7).Value, searchTerm, vbTextCompare) &gt; 0)
+        End If
+
+        If inScope And keywordOk Then
+            matchCount = matchCount + 1
+            matchRows(matchCount) = r
+            Dim favRank As String
+            favRank = &quot;1&quot;
+            If libWs.Cells(r, 11).Value = StarChar() Then favRank = &quot;0&quot;
+            sortKeys(matchCount) = favRank &amp; &quot;|&quot; &amp; libWs.Cells(r, 1).Value &amp; &quot;|&quot; &amp; Format(r, &quot;00000&quot;)
+        End If
+    Next r
+
+    &#x27; pass 2: selection sort on the keys (dataset is tiny, so simplicity beats speed here)
+    Dim i As Long, j As Long, minIdx As Long
+    Dim tmpKey As String, tmpRow As Long
+    For i = 1 To matchCount - 1
+        minIdx = i
+        For j = i + 1 To matchCount
+            If sortKeys(j) &lt; sortKeys(minIdx) Then minIdx = j
+        Next j
+        If minIdx &lt;&gt; i Then
+            tmpKey = sortKeys(i): sortKeys(i) = sortKeys(minIdx): sortKeys(minIdx) = tmpKey
+            tmpRow = matchRows(i): matchRows(i) = matchRows(minIdx): matchRows(minIdx) = tmpRow
+        End If
+    Next i
+
+    &#x27; pass 3: write the sorted results out
+    Dim outRow As Long
+    outRow = 7
+
+    For i = 1 To matchCount
+        r = matchRows(i)
+
+        Dim caseTxt As String
+        caseTxt = libWs.Cells(r, 2).Value &amp; &quot; &quot; &amp; libWs.Cells(r, 3).Value
+        Dim flagTxt As String
+        flagTxt = libWs.Cells(r, 10).Value
+        If flagTxt &lt;&gt; &quot;&quot; Then caseTxt = caseTxt &amp; &quot; [&quot; &amp; flagTxt &amp; &quot;]&quot;
+
+        ws.Cells(outRow, 1).Value = libWs.Cells(r, 1).Value
+        ws.Cells(outRow, 1).WrapText = True
+        ws.Cells(outRow, 2).Value = caseTxt
+        ws.Cells(outRow, 2).WrapText = True
+        ws.Cells(outRow, 3).Value = libWs.Cells(r, 4).Value
+        ws.Cells(outRow, 4).Value = ExpandPrinciples(libWs.Cells(r, 5).Value)
+        ws.Cells(outRow, 5).Value = libWs.Cells(r, 6).Value
+        ws.Cells(outRow, 5).WrapText = True
+        ws.Cells(outRow, 6).Value = libWs.Cells(r, 7).Value
+        ws.Cells(outRow, 6).WrapText = True
+        ws.Cells(outRow, 7).Value = libWs.Cells(r, 8).Value
+        ws.Cells(outRow, 7).WrapText = True
+
+        Dim srcUrl As String
+        srcUrl = libWs.Cells(r, 9).Value
+        If srcUrl &lt;&gt; &quot;&quot; Then
+            ws.Hyperlinks.Add Anchor:=ws.Cells(outRow, 8), Address:=srcUrl, TextToDisplay:=&quot;Open&quot;
+        Else
+            ws.Cells(outRow, 8).Value = &quot;-&quot;
+        End If
+
+        If libWs.Cells(r, 11).Value = StarChar() Then
+            ws.Cells(outRow, 9).Value = StarChar()
+            ws.Cells(outRow, 9).Font.Color = RGB(184, 134, 11)
+            ws.Cells(outRow, 9).Font.Bold = True
+            ws.Cells(outRow, 9).Font.Size = 14
+        End If
+        ws.Cells(outRow, 9).HorizontalAlignment = xlCenter
+
+        ws.Cells(outRow, 10).Value = r
+
+        ColourOutcomeCell ws.Cells(outRow, 3), CStr(libWs.Cells(r, 4).Value)
+
+        If (outRow Mod 2) = 1 Then
+            ws.Range(ws.Cells(outRow, 1), ws.Cells(outRow, 8)).Interior.Color = RGB(232, 240, 255)
+        End If
+
+        outRow = outRow + 1
+    Next i
+
+    If outRow = 7 Then
+        If searchTerm &lt;&gt; &quot;&quot; And selectedCat &lt;&gt; &quot;&quot; Then
+            ws.Cells(7, 1).Value = &quot;No decisions found for &#x27;&quot; &amp; searchTerm &amp; &quot;&#x27; under &quot; &amp; selectedCat &amp; &quot;.&quot;
+        ElseIf searchTerm &lt;&gt; &quot;&quot; Then
+            ws.Cells(7, 1).Value = &quot;No decisions found for &#x27;&quot; &amp; searchTerm &amp; &quot;&#x27;.&quot;
+        Else
+            ws.Cells(7, 1).Value = &quot;No PIC decisions currently held for this treatment type.&quot;
+        End If
+    End If
+
+    ws.Rows(&quot;7:&quot; &amp; (outRow - 1)).AutoFit
+End Sub
+
+Private Sub ColourOutcomeCell(c As Range, outcome As String)
+    If InStr(1, outcome, &quot;Not R&amp;N&quot;, vbTextCompare) &gt; 0 Then
+        c.Font.Color = RGB(192, 0, 0)
+    ElseIf Left(outcome, 3) = &quot;R&amp;N&quot; Then
+        c.Font.Color = RGB(0, 128, 0)
+    Else
+        c.Font.Color = RGB(191, 143, 0)
+    End If
+    c.Font.Bold = True
+End Sub
+</pre>
+</div>
+
+<h2 id="code2">Code block 2 of 2 - Sheet code</h2>
+<p>Paste this into your chosen sheet's own code window (double-click it under "Microsoft Excel Objects" in the Project Explorer, or right-click its tab &rarr; View Code) - not a Module.</p>
+<div class="code-block">
+  <button class="copy-btn" onclick="copyCode('code2', this)">Copy code</button>
+  <pre id="code2">&#x27; this goes in the code module of whichever sheet you want to use as the lookup sheet -
+&#x27; right click that sheet&#x27;s tab -&gt; View Code -&gt; paste this in
+&#x27; it doesn&#x27;t matter what the sheet is called or which one you pick - RunSetupHere below
+&#x27; builds everything on THIS sheet (via Me), which is what makes the dropdown/search/favourites
+&#x27; actually work
+
+Option Explicit
+
+Public Sub RunSetupHere()
+    Dim wasScreenUpdating As Boolean
+    wasScreenUpdating = Application.ScreenUpdating
+    Application.ScreenUpdating = False
+    Application.EnableEvents = False
+
+    SetupPrinciplesSheet
+    SetupPICLibrarySheet
+    SetupCategoriesSheet
+    SetupLookupSheet Me
+    RefreshResults Me
+
+    Application.EnableEvents = True
+    Application.ScreenUpdating = wasScreenUpdating
+
+    MsgBox &quot;Setup done. Pick a TRAC Type from the dropdown, or type a keyword to search, on this sheet. Double-click a result row to star it as a favourite.&quot;, vbInformation
+End Sub
+
+&#x27; TRAC Type dropdown (DROPDOWN_CELL) and keyword search box (SEARCH_CELL) both live on this
+&#x27; sheet. Either one changing just re-filters - no more clearing the other, since a keyword now
+&#x27; searches within whatever TRAC Type is selected rather than overriding it
+Private Sub Worksheet_Change(ByVal Target As Range)
+    If Intersect(Target, Me.Range(DROPDOWN_CELL)) Is Nothing And Intersect(Target, Me.Range(SEARCH_CELL)) Is Nothing Then Exit Sub
+
+    On Error GoTo CleanFail
+    Application.EnableEvents = False
+    RefreshResults Me
+CleanFail:
+    Application.EnableEvents = True
+End Sub
+
+&#x27; double-clicking any cell in a result row (row 7 down, within the results columns) toggles
+&#x27; that case&#x27;s favourite star. column J (hidden) holds which PIC Library row the clicked result
+&#x27; row came from - that&#x27;s how this knows what to toggle
+Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean)
+    If Target.Cells.Count &gt; 1 Then Exit Sub
+    If Target.Row &lt; 7 Then Exit Sub
+    If Target.Column &gt; 9 Then Exit Sub
+
+    Dim libRowRef As String
+    libRowRef = CStr(Me.Cells(Target.Row, 10).Value)
+    If libRowRef = &quot;&quot; Then Exit Sub
+
+    Cancel = True
+
+    Dim libWs As Worksheet
+    Set libWs = ThisWorkbook.Worksheets(LIB_SHEET)
+    Dim libRow As Long
+    libRow = CLng(libRowRef)
+
+    On Error GoTo CleanFail
+    Application.EnableEvents = False
+
+    If libWs.Cells(libRow, 11).Value = StarChar() Then
+        libWs.Cells(libRow, 11).Value = &quot;&quot;
+    Else
+        libWs.Cells(libRow, 11).Value = StarChar()
+    End If
+
+    RefreshResults Me
+
+CleanFail:
+    Application.EnableEvents = True
+End Sub
+</pre>
+</div>
+
+<script>
+function copyCode(id, btn) {
+  var text = document.getElementById(id).innerText;
+  navigator.clipboard.writeText(text).then(function() {
+    var original = btn.textContent;
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(function() { btn.textContent = original; btn.classList.remove('copied'); }, 1500);
+  }, function() {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.textContent = 'Copied!';
+    setTimeout(function() { btn.textContent = 'Copy code'; }, 1500);
+  });
+}
+</script>
+
+</body>
+</html>
